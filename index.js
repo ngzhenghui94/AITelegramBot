@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import { fileURLToPath } from 'url';
+import logger from './utils/logger.js';
 
 // Define __filename and __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +21,12 @@ const telegramBotApiKey = process.env.TELEGRAM_BOT_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
 
 if (!telegramBotApiKey || !groqApiKey) {
-  throw new Error('Missing API keys. Please set TELEGRAM_BOT_API_KEY and GROQ_API_KEY environment variables.');
+  logger.error(
+    'Missing API keys. Please set TELEGRAM_BOT_API_KEY and GROQ_API_KEY environment variables.'
+  );
+  throw new Error(
+    'Missing API keys. Please set TELEGRAM_BOT_API_KEY and GROQ_API_KEY environment variables.'
+  );
 }
 
 const bot = new TelegramBot(telegramBotApiKey, { polling: true });
@@ -44,14 +50,18 @@ bot.on('message', async (msg) => {
     clearTimeout(inactivityTimers[chatId]);
     inactivityTimers[chatId] = setTimeout(() => {
       delete conversationHistories[chatId];
+      // **Log conversation timeout**
+      logger.info(`Conversation with chat ID ${chatId} has timed out.`);
     }, INACTIVITY_TIMEOUT);
 
     if (msg.text === '/start') {
       await bot.sendMessage(chatId, 'Welcome to the Groq-powered chatbot!');
       conversationHistories[chatId] = [];
+      logger.info(`Started new conversation with chat ID ${chatId}.`);
     } else if (msg.text === '/clear') {
       conversationHistories[chatId] = [];
       await bot.sendMessage(chatId, 'Conversation history cleared.');
+      logger.info(`Cleared conversation history for chat ID ${chatId}.`);
     } else if (msg.voice) {
       await bot.sendChatAction(chatId, 'typing');
 
@@ -75,6 +85,7 @@ bot.on('message', async (msg) => {
       // Send the response
       const formattedResponse = formatMessage(response);
       await sendMessageInChunks(chatId, formattedResponse);
+      logger.info(`Processed voice message for chat ID ${chatId}.`);
     } else if (msg.text) {
       // Existing text message handling logic
       await bot.sendChatAction(chatId, 'typing');
@@ -96,8 +107,10 @@ bot.on('message', async (msg) => {
       // Send the response
       const formattedResponse = formatMessage(response);
       await sendMessageInChunks(chatId, formattedResponse);
+      logger.info(`Processed text message for chat ID ${chatId}.`);
     } else {
       await bot.sendMessage(chatId, 'Please send a text or voice message.');
+      logger.warn(`Received unrecognized message type from chat ID ${chatId}.`);
     }
   } catch (error) {
     console.error(error);
@@ -163,7 +176,9 @@ async function transcribeVoiceMessage(fileId, chatId) {
       fs.unlinkSync(tempFilePath);
     }
 
-    console.error('Error transcribing voice message:', error.response?.data || error.message);
+    // **Log the error**
+    logger.error('Error transcribing voice message:', error.response?.data || error.message);
+
     await bot.sendMessage(chatId, 'Unable to transcribe voice message.');
     return null;
   }
@@ -175,9 +190,10 @@ async function getGroqChatCompletion(conversation) {
       messages: conversation,
       model: textModel,
     });
+    logger.info('Received chat completion from Groq API.');
     return chatCompletion.choices[0]?.message?.content || '';
   } catch (error) {
-    console.error('Unable to get chat completion from Groq API:', error);
+    logger.error('Unable to get chat completion from Groq API:', error);
     throw new Error(`Unable to get chat completion from Groq API: ${error.message}`);
   }
 }
@@ -266,6 +282,7 @@ function formatMessage(text) {
   return formattedTextWithCodeBlocks;
 }
 
+
 bot.on('error', (error) => {
-  console.error(error);
+  logger.error('Telegram bot encountered an error:', error);
 });

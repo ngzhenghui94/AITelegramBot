@@ -1,0 +1,66 @@
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:05:31.483Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:05:32.622Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:05:43.671Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:05:44.156Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:08:18.178Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:08:18.670Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:25:33.375Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:26:04.605Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:26:36.133Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:27:07.324Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:27:38.552Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:28:09.816Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:28:48.109Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:29:20.041Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:29:51.562Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:30:22.778Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:30:54.531Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:31:25.750Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:32:51.304Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:33:22.584Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:33:53.868Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:34:25.767Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:34:57.079Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:35:29.888Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:36:01.092Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:36:32.682Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:37:04.127Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:37:35.469Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:38:07.257Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:38:41.823Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:39:33.913Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:40:15.045Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:40:54.836Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:41:52.478Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:42:23.626Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:42:54.865Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:43:26.089Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:43:57.347Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:44:35.834Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:45:06.952Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:45:38.109Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:46:09.373Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:46:40.489Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:47:11.793Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:47:42.953Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:48:16.767Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:48:48.087Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:49:19.644Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:50:22.237Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:50:53.630Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:51:24.744Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:51:55.892Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:52:40.805Z"}
+{"level":"warn","message":"Mongoose disconnected from MongoDB.","timestamp":"2024-10-26T08:53:16.360Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:53:25.009Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:53:25.451Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:53:25.548Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:53:25.570Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:53:25.644Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2024-10-26T08:53:25.700Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:53:26.016Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:53:26.040Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:53:26.132Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2024-10-26T08:53:26.202Z"}
+{"level":"info","message":"Conversation with chat ID 151894779 has timed out.","timestamp":"2024-10-26T09:23:24.022Z"}
+{"level":"error","message":"Error connecting to MongoDB: C067C7EE6F7F0000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1600:SSL alert number 80\n","reason":{"commonWireVersion":0,"compatible":true,"heartbeatFrequencyMS":10000,"localThresholdMS":15,"logicalSessionTimeoutMinutes":null,"maxElectionId":null,"maxSetVersion":null,"servers":{"ac-xyo8khv-shard-00-00.mc7jksn.mongodb.net:27017":{"$clusterTime":null,"address":"ac-xyo8khv-shard-00-00.mc7jksn.mongodb.net:27017","arbiters":[],"electionId":null,"error":{},"hosts":[],"lastUpdateTime":12353965912,"lastWriteDate":0,"logicalSessionTimeoutMinutes":null,"maxBsonObjectSize":null,"maxMessageSizeBytes":null,"maxWireVersion":0,"maxWriteBatchSize":null,"me":null,"minRoundTripTime":0,"minWireVersion":0,"passives":[],"primary":null,"roundTripTime":-1,"setName":null,"setVersion":null,"tags":{},"topologyVersion":null,"type":"Unknown"},"ac-xyo8khv-shard-00-01.mc7jksn.mongodb.net:27017":{"$clusterTime":null,"address":"ac-xyo8khv-shard-00-01.mc7jksn.mongodb.net:27017","arbiters":[],"electionId":null,"error":{},"hosts":[],"lastUpdateTime":12353965498,"lastWriteDate":0,"logicalSessionTimeoutMinutes":null,"maxBsonObjectSize":null,"maxMessageSizeBytes":null,"maxWireVersion":0,"maxWriteBatchSize":null,"me":null,"minRoundTripTime":0,"minWireVersion":0,"passives":[],"primary":null,"roundTripTime":-1,"setName":null,"setVersion":null,"tags":{},"topologyVersion":null,"type":"Unknown"},"ac-xyo8khv-shard-00-02.mc7jksn.mongodb.net:27017":{"$clusterTime":null,"address":"ac-xyo8khv-shard-00-02.mc7jksn.mongodb.net:27017","arbiters":[],"electionId":null,"error":{},"hosts":[],"lastUpdateTime":12353965968,"lastWriteDate":0,"logicalSessionTimeoutMinutes":null,"maxBsonObjectSize":null,"maxMessageSizeBytes":null,"maxWireVersion":0,"maxWriteBatchSize":null,"me":null,"minRoundTripTime":0,"minWireVersion":0,"passives":[],"primary":null,"roundTripTime":-1,"setName":null,"setVersion":null,"tags":{},"topologyVersion":null,"type":"Unknown"}},"setName":"atlas-bfpt1h-shard-0","stale":false,"type":"ReplicaSetNoPrimary"},"stack":"MongoServerSelectionError: C067C7EE6F7F0000:error:0A000438:SSL routines:ssl3_read_bytes:tlsv1 alert internal error:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1600:SSL alert number 80\n\n    at Topology.selectServer (/root/TelegramGrokAIBot/node_modules/mongodb/lib/sdam/topology.js:303:38)\n    at async Topology._connect (/root/TelegramGrokAIBot/node_modules/mongodb/lib/sdam/topology.js:196:28)\n    at async Topology.connect (/root/TelegramGrokAIBot/node_modules/mongodb/lib/sdam/topology.js:158:13)\n    at async topologyConnect (/root/TelegramGrokAIBot/node_modules/mongodb/lib/mongo_client.js:223:17)\n    at async MongoClient._connect (/root/TelegramGrokAIBot/node_modules/mongodb/lib/mongo_client.js:236:13)\n    at async MongoClient.connect (/root/TelegramGrokAIBot/node_modules/mongodb/lib/mongo_client.js:161:13)\n    at async connectDB (file:///root/TelegramGrokAIBot/db.js:22:5)","timestamp":"2024-10-26T13:59:54.428Z"}
