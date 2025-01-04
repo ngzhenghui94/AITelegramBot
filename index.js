@@ -6,6 +6,8 @@ import path from 'path';
 import axios from 'axios';
 import { fileURLToPath } from 'url';
 import logger from './utils/logger.js';
+import redisClient from './redisClient.js';
+
 
 // Define __filename and __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -32,77 +34,88 @@ if (!telegramBotApiKey || !groqApiKey) {
 const bot = new TelegramBot(telegramBotApiKey, { polling: true });
 const groqClient = new Groq({ apiKey: groqApiKey });
 
-const conversationHistories = {};
+// const conversationHistories = {};
 const MAX_HISTORY_LENGTH = 10; // Adjust as needed
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const inactivityTimers = {};
+const INACTIVITY_TIMEOUT_SECONDS = 30 * 60; // 30 minutes in seconds
+// const inactivityTimers = {};
+
 
 bot.on('message', async (msg) => {
   try {
-    const chatId = msg.chat.id;
+    const chatId = msg.chat.id.toString();
 
-    // Initialize conversation history if necessary
-    if (!conversationHistories[chatId]) {
-      conversationHistories[chatId] = [];
+    // Fetch conversation history from Redis
+    let conversationHistory = await redisClient.get(`conversation:${chatId}`);
+    if (conversationHistory) {
+      conversationHistory = JSON.parse(conversationHistory);
+    } else {
+      conversationHistory = [];
     }
-
-    // Reset inactivity timer
-    clearTimeout(inactivityTimers[chatId]);
-    inactivityTimers[chatId] = setTimeout(() => {
-      delete conversationHistories[chatId];
-      // **Log conversation timeout**
-      logger.info(`Conversation with chat ID ${chatId} has timed out.`);
-    }, INACTIVITY_TIMEOUT);
 
     if (msg.text === '/start') {
       await bot.sendMessage(chatId, 'Welcome to the Groq-powered chatbot!');
-      conversationHistories[chatId] = [];
+      await redisClient.del(`conversation:${chatId}`);
       logger.info(`Started new conversation with chat ID ${chatId}.`);
     } else if (msg.text === '/clear') {
-      conversationHistories[chatId] = [];
+      await redisClient.del(`conversation:${chatId}`);
       await bot.sendMessage(chatId, 'Conversation history cleared.');
       logger.info(`Cleared conversation history for chat ID ${chatId}.`);
     } else if (msg.voice) {
       await bot.sendChatAction(chatId, 'typing');
 
       // Handle voice message
-      const transcription = await transcribeVoiceMessage(msg.voice.file_id);
+      const transcription = await transcribeVoiceMessage(msg.voice.file_id, chatId);
 
-      // Add user's transcribed message to the conversation history
-      conversationHistories[chatId].push({ role: 'user', content: transcription });
+      if (transcription) {
+        // Add user's transcribed message to the conversation history
+        conversationHistory.push({ role: 'user', content: transcription });
 
-      // Limit conversation history
-      if (conversationHistories[chatId].length > MAX_HISTORY_LENGTH * 2) {
-        conversationHistories[chatId] = conversationHistories[chatId].slice(-MAX_HISTORY_LENGTH * 2);
+        // Limit conversation history
+        if (conversationHistory.length > MAX_HISTORY_LENGTH * 2) {
+          conversationHistory = conversationHistory.slice(-MAX_HISTORY_LENGTH * 2);
+        }
+
+        // Get the response from the Groq API
+        const response = await getGroqChatCompletion(conversationHistory);
+
+        // Add assistant's response to the conversation history
+        conversationHistory.push({ role: 'assistant', content: response });
+
+        // Save updated conversation history to Redis with expiration
+        await redisClient.setEx(
+          `conversation:${chatId}`,
+          INACTIVITY_TIMEOUT_SECONDS,
+          JSON.stringify(conversationHistory)
+        );
+
+        // Send the response
+        const formattedResponse = formatMessage(response);
+        await sendMessageInChunks(chatId, formattedResponse);
+        logger.info(`Processed voice message for chat ID ${chatId}.`);
       }
-
-      // Get the response from the Groq API using the text model
-      const response = await getGroqChatCompletion(conversationHistories[chatId]);
-
-      // Add assistant's response to the conversation history
-      conversationHistories[chatId].push({ role: 'assistant', content: response });
-
-      // Send the response
-      const formattedResponse = formatMessage(response);
-      await sendMessageInChunks(chatId, formattedResponse);
-      logger.info(`Processed voice message for chat ID ${chatId}.`);
     } else if (msg.text) {
-      // Existing text message handling logic
       await bot.sendChatAction(chatId, 'typing');
 
       // Add user's message to the conversation history
-      conversationHistories[chatId].push({ role: 'user', content: msg.text });
+      conversationHistory.push({ role: 'user', content: msg.text });
 
       // Limit conversation history
-      if (conversationHistories[chatId].length > MAX_HISTORY_LENGTH * 2) {
-        conversationHistories[chatId] = conversationHistories[chatId].slice(-MAX_HISTORY_LENGTH * 2);
+      if (conversationHistory.length > MAX_HISTORY_LENGTH * 2) {
+        conversationHistory = conversationHistory.slice(-MAX_HISTORY_LENGTH * 2);
       }
 
       // Get the response from the Groq API
-      const response = await getGroqChatCompletion(conversationHistories[chatId]);
+      const response = await getGroqChatCompletion(conversationHistory);
 
       // Add assistant's response to the conversation history
-      conversationHistories[chatId].push({ role: 'assistant', content: response });
+      conversationHistory.push({ role: 'assistant', content: response });
+
+      // Save updated conversation history to Redis with expiration
+      await redisClient.setEx(
+        `conversation:${chatId}`,
+        INACTIVITY_TIMEOUT_SECONDS,
+        JSON.stringify(conversationHistory)
+      );
 
       // Send the response
       const formattedResponse = formatMessage(response);
@@ -113,10 +126,11 @@ bot.on('message', async (msg) => {
       logger.warn(`Received unrecognized message type from chat ID ${chatId}.`);
     }
   } catch (error) {
-    console.error(error);
+    logger.error('Error processing message:', error);
     await bot.sendMessage(msg.chat.id, 'Error: Unable to process your request.');
   }
 });
+
 
 
 
