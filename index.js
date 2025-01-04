@@ -18,7 +18,7 @@ dotenv.config();
 
 // 'llama-3.1-70b-versatile' model for text handling
 // 'whisper-large-v3' model for voice recordings
-const textModel = process.env.AI_MODEL || 'llama-3.1-70b-versatile';
+const textModel = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
 const telegramBotApiKey = process.env.TELEGRAM_BOT_API_KEY;
 const groqApiKey = process.env.GROQ_API_KEY;
 
