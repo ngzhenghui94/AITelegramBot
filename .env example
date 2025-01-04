@@ -1,4 +1,4 @@
 # rename from .env example to .env
 
-GROQ_API_KEY = "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"
-TELEGRAM_BOT_API_KEY = "6248346167:AAFihXzmDoCG39xjWU53A2DBpII_KEMhbhU"
+GROQ_API_KEY = ""
+TELEGRAM_BOT_API_KEY = ""
