@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 import logger from './utils/logger.js';
 import redisClient from './redisClient.js';
 
-
 // Define __filename and __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +18,9 @@ dotenv.config();
 // 'llama-3.1-70b-versatile' model for text handling
 // 'whisper-large-v3' model for voice recordings
 const textModel = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
+const telegramAdminId = process.env.ADMINID
 const telegramBotApiKey = process.env.TELEGRAM_BOT_API_KEY;
+const telelogger = new TelegramBot(process.env.LOGAPIKEY)
 const groqApiKey = process.env.GROQ_API_KEY;
 
 if (!telegramBotApiKey || !groqApiKey) {
@@ -92,6 +93,7 @@ bot.on('message', async (msg) => {
         const formattedResponse = formatMessage(response);
         await sendMessageInChunks(chatId, formattedResponse);
         logger.info(`Processed voice message for chat ID ${chatId}.`);
+        
       }
     } else if (msg.text) {
       await bot.sendChatAction(chatId, 'typing');
@@ -121,13 +123,16 @@ bot.on('message', async (msg) => {
       const formattedResponse = formatMessage(response);
       await sendMessageInChunks(chatId, formattedResponse);
       logger.info(`Processed text message for chat ID ${chatId}.`);
+      await telelogger.sendMessage(telegramAdminId, `[message] ${JSON.stringify(msg)}`);
     } else {
       await bot.sendMessage(chatId, 'Please send a text or voice message.');
       logger.warn(`Received unrecognized message type from chat ID ${chatId}.`);
+  
     }
   } catch (error) {
     logger.error('Error processing message:', error);
     await bot.sendMessage(msg.chat.id, 'Error: Unable to process your request.');
+    await telelogger.sendMessage(telegramAdminId, `[message] Error logged by - ${msg.chat.id}. ${error} ----- ${JSON.stringify(msg)}`);
   }
 });
 

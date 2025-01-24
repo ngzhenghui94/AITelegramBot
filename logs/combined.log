@@ -518,3 +518,97 @@
 {"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-03T01:14:21.581Z"}
 {"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-04T02:15:26.811Z"}
 {"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-04T02:15:27.300Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-08T08:46:05.952Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-08T08:46:06.535Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T00:41:09.069Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T00:41:09.548Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T00:42:21.215Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T00:42:21.694Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T00:52:42.279Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T00:52:42.821Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T01:01:47.470Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T01:01:47.953Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T01:02:54.573Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T01:02:55.065Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T01:29:01.867Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T01:29:02.348Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-10T01:50:35.148Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-10T01:50:36.099Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-12T06:42:34.347Z"}
+{"level":"info","message":"Processed text message for chat ID 5711403924.","timestamp":"2025-01-12T06:42:35.395Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-13T07:56:52.009Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-13T07:56:52.510Z"}
+{"level":"warn","message":"Received unrecognized message type from chat ID 559707858.","timestamp":"2025-01-13T08:48:03.754Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-13T09:00:26.380Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-13T09:00:26.923Z"}
+{"level":"info","message":"Cleared conversation history for chat ID 151894779.","timestamp":"2025-01-13T09:00:34.918Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-13T09:00:41.113Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-13T09:00:41.604Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-13T09:02:25.155Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-13T09:02:25.645Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-13T18:58:42.632Z"}
+{"level":"info","message":"Processed text message for chat ID 5711403924.","timestamp":"2025-01-13T18:58:43.148Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-14T15:23:14.940Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-14T15:23:15.510Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-15T03:37:43.769Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-15T03:37:44.260Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-15T06:55:29.290Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-15T06:55:29.800Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-15T13:00:48.640Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-15T13:00:49.205Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-17T13:55:15.867Z"}
+{"level":"info","message":"Cleared conversation history for chat ID 151894779.","timestamp":"2025-01-17T13:55:19.963Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-17T13:55:32.729Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-17T13:57:02.265Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-17T13:58:23.494Z"}
+{"level":"info","message":"Processed text message for chat ID 151894779.","timestamp":"2025-01-17T13:58:24.055Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-19T17:14:22.508Z"}
+{"level":"info","message":"Processed text message for chat ID 5711403924.","timestamp":"2025-01-19T17:14:23.049Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-20T18:29:55.390Z"}
+{"level":"info","message":"Processed text message for chat ID 5711403924.","timestamp":"2025-01-20T18:29:55.865Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-22T08:00:00.915Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-22T08:00:01.401Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:28:45.370Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:28:45.923Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:28:51.049Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:28:51.606Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:29:03.719Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:29:04.388Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:29:41.183Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:29:41.729Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:29:43.882Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:29:44.430Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:29:53.839Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:29:54.400Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T03:30:14.627Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T03:30:15.268Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:11:37.739Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:11:38.290Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:11:58.233Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:11:58.827Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:12:27.125Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:12:27.671Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:13:00.200Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:13:00.850Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:16:38.732Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:16:39.334Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:17:51.983Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:17:52.738Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:18:36.977Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:18:37.533Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:19:39.334Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:19:39.887Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T05:50:47.862Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T05:50:48.431Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T07:40:40.601Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T07:40:41.169Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T08:24:40.663Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T08:24:41.219Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T08:26:53.887Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T08:26:54.452Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T08:27:45.738Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T08:27:46.297Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T08:28:58.866Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T08:28:59.460Z"}
+{"level":"info","message":"Received chat completion from Groq API.","timestamp":"2025-01-24T08:41:01.320Z"}
+{"level":"info","message":"Processed text message for chat ID 559707858.","timestamp":"2025-01-24T08:41:01.833Z"}
