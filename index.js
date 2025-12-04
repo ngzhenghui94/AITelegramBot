@@ -7,6 +7,8 @@ import axios from 'axios';
 import { fileURLToPath } from 'url';
 import logger from './utils/logger.js';
 import redisClient from './redisClient.js';
+import * as taskManager from './taskManager.js';
+import http from 'http';
 
 // Define __filename and __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -45,6 +47,23 @@ bot.on('message', async (msg) => {
   try {
     const chatId = msg.chat.id.toString();
 
+    // Rate Limiting: 10 messages per minute
+    const rateLimitKey = `rate_limit:${chatId}`;
+    const messageCount = await redisClient.incr(rateLimitKey);
+
+    if (messageCount === 1) {
+      await redisClient.expire(rateLimitKey, 60);
+    }
+
+    if (messageCount > 10) {
+      // Only send the warning once per window to avoid spamming the user back
+      if (messageCount === 11) {
+        await bot.sendMessage(chatId, 'You are sending messages too fast. Please wait a minute.');
+      }
+      logger.warn(`Rate limit exceeded for chat ID ${chatId}.`);
+      return;
+    }
+
     // Fetch conversation history from Redis
     let conversationHistory = await redisClient.get(`conversation:${chatId}`);
     if (conversationHistory) {
@@ -54,13 +73,49 @@ bot.on('message', async (msg) => {
     }
 
     if (msg.text === '/start') {
-      await bot.sendMessage(chatId, 'Welcome to the Groq-powered chatbot!');
+      await bot.sendMessage(chatId, 'Welcome to the Groq-powered chatbot! You can also manage your tasks with /addtask, /tasks, and /orbit.');
       await redisClient.del(`conversation:${chatId}`);
       logger.info(`Started new conversation with chat ID ${chatId}.`);
     } else if (msg.text === '/clear') {
       await redisClient.del(`conversation:${chatId}`);
       await bot.sendMessage(chatId, 'Conversation history cleared.');
       logger.info(`Cleared conversation history for chat ID ${chatId}.`);
+    } else if (msg.text && msg.text.startsWith('/addtask')) {
+      // Format: /addtask HH:MM Description
+      const parts = msg.text.split(' ');
+      if (parts.length < 3) {
+        await bot.sendMessage(chatId, 'Usage: /addtask <HH:MM> <Description>');
+      } else {
+        const time = parts[1];
+        const description = parts.slice(2).join(' ');
+        await taskManager.addTask(chatId, description, time);
+        await bot.sendMessage(chatId, `Task added: ${description} at ${time}`);
+      }
+    } else if (msg.text === '/tasks') {
+      const tasks = await taskManager.getTasks(chatId);
+      if (tasks.length === 0) {
+        await bot.sendMessage(chatId, 'No tasks found.');
+      } else {
+        let response = '<b>Your Tasks:</b>\n';
+        tasks.forEach((t, index) => {
+          response += `${index + 1}. [${t.time}] ${t.description}\n`;
+        });
+        await bot.sendMessage(chatId, response, { parse_mode: 'HTML' });
+      }
+    } else if (msg.text === '/orbit') {
+      const tasks = await taskManager.getOrbit(chatId);
+      if (tasks.length === 0) {
+        await bot.sendMessage(chatId, 'Your Orbit is empty.');
+      } else {
+        let response = '<b>Your Orbit (Schedule):</b>\n';
+        tasks.forEach(t => {
+          response += `• <b>${t.time}</b>: ${t.description}\n`;
+        });
+        await bot.sendMessage(chatId, response, { parse_mode: 'HTML' });
+      }
+    } else if (msg.text === '/clearorbit') {
+      await taskManager.clearTasks(chatId);
+      await bot.sendMessage(chatId, 'Orbit cleared. All tasks removed.');
     } else if (msg.voice) {
       await bot.sendChatAction(chatId, 'typing');
 
@@ -304,4 +359,20 @@ function formatMessage(text) {
 
 bot.on('error', (error) => {
   logger.error('Telegram bot encountered an error:', error);
+});
+
+// Health check server
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  logger.info(`Health check server running on port ${PORT}`);
 });
