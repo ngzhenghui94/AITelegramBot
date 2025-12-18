@@ -1,361 +1,30 @@
 import Groq from 'groq-sdk';
 import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
-import { fileURLToPath } from 'url';
+import http from 'http';
+import config from './config.js';
 import logger from './utils/logger.js';
 import redisClient from './redisClient.js';
-import * as taskManager from './taskManager.js';
-import http from 'http';
+import { MessageHandler } from './handlers/messageHandler.js';
 
-// Define __filename and __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Initialize Groq
+const groqClient = new Groq({ apiKey: config.groq.apiKey });
 
+// Initialize Telegram Bot
+const bot = new TelegramBot(config.telegram.botApiKey, { polling: true });
 
-dotenv.config();
-
-// 'llama-3.1-70b-versatile' model for text handling
-// 'whisper-large-v3' model for voice recordings
-const textModel = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
-const telegramAdminId = process.env.ADMINID
-const telegramBotApiKey = process.env.TELEGRAM_BOT_API_KEY;
-const telelogger = new TelegramBot(process.env.LOGAPIKEY)
-const groqApiKey = process.env.GROQ_API_KEY;
-
-if (!telegramBotApiKey || !groqApiKey) {
-  logger.error(
-    'Missing API keys. Please set TELEGRAM_BOT_API_KEY and GROQ_API_KEY environment variables.'
-  );
-  throw new Error(
-    'Missing API keys. Please set TELEGRAM_BOT_API_KEY and GROQ_API_KEY environment variables.'
-  );
+// Initialize Logger Bot (if configured)
+let telelogger;
+if (config.telegram.logApiKey) {
+  telelogger = new TelegramBot(config.telegram.logApiKey);
 }
 
-const bot = new TelegramBot(telegramBotApiKey, { polling: true });
-const groqClient = new Groq({ apiKey: groqApiKey });
+// Initialize Message Handler
+const messageHandler = new MessageHandler(bot, groqClient, telelogger);
 
-// const conversationHistories = {};
-const MAX_HISTORY_LENGTH = 10; // Adjust as needed
-const INACTIVITY_TIMEOUT_SECONDS = 30 * 60; // 30 minutes in seconds
-// const inactivityTimers = {};
-
-
-bot.on('message', async (msg) => {
-  try {
-    const chatId = msg.chat.id.toString();
-
-    // Rate Limiting: 10 messages per minute
-    const rateLimitKey = `rate_limit:${chatId}`;
-    const messageCount = await redisClient.incr(rateLimitKey);
-
-    if (messageCount === 1) {
-      await redisClient.expire(rateLimitKey, 60);
-    }
-
-    if (messageCount > 10) {
-      // Only send the warning once per window to avoid spamming the user back
-      if (messageCount === 11) {
-        await bot.sendMessage(chatId, 'You are sending messages too fast. Please wait a minute.');
-      }
-      logger.warn(`Rate limit exceeded for chat ID ${chatId}.`);
-      return;
-    }
-
-    // Fetch conversation history from Redis
-    let conversationHistory = await redisClient.get(`conversation:${chatId}`);
-    if (conversationHistory) {
-      conversationHistory = JSON.parse(conversationHistory);
-    } else {
-      conversationHistory = [];
-    }
-
-    if (msg.text === '/start') {
-      await bot.sendMessage(chatId, 'Welcome to the Groq-powered chatbot! You can also manage your tasks with /addtask, /tasks, and /orbit.');
-      await redisClient.del(`conversation:${chatId}`);
-      logger.info(`Started new conversation with chat ID ${chatId}.`);
-    } else if (msg.text === '/clear') {
-      await redisClient.del(`conversation:${chatId}`);
-      await bot.sendMessage(chatId, 'Conversation history cleared.');
-      logger.info(`Cleared conversation history for chat ID ${chatId}.`);
-    } else if (msg.text && msg.text.startsWith('/addtask')) {
-      // Format: /addtask HH:MM Description
-      const parts = msg.text.split(' ');
-      if (parts.length < 3) {
-        await bot.sendMessage(chatId, 'Usage: /addtask <HH:MM> <Description>');
-      } else {
-        const time = parts[1];
-        const description = parts.slice(2).join(' ');
-        await taskManager.addTask(chatId, description, time);
-        await bot.sendMessage(chatId, `Task added: ${description} at ${time}`);
-      }
-    } else if (msg.text === '/tasks') {
-      const tasks = await taskManager.getTasks(chatId);
-      if (tasks.length === 0) {
-        await bot.sendMessage(chatId, 'No tasks found.');
-      } else {
-        let response = '<b>Your Tasks:</b>\n';
-        tasks.forEach((t, index) => {
-          response += `${index + 1}. [${t.time}] ${t.description}\n`;
-        });
-        await bot.sendMessage(chatId, response, { parse_mode: 'HTML' });
-      }
-    } else if (msg.text === '/orbit') {
-      const tasks = await taskManager.getOrbit(chatId);
-      if (tasks.length === 0) {
-        await bot.sendMessage(chatId, 'Your Orbit is empty.');
-      } else {
-        let response = '<b>Your Orbit (Schedule):</b>\n';
-        tasks.forEach(t => {
-          response += `• <b>${t.time}</b>: ${t.description}\n`;
-        });
-        await bot.sendMessage(chatId, response, { parse_mode: 'HTML' });
-      }
-    } else if (msg.text === '/clearorbit') {
-      await taskManager.clearTasks(chatId);
-      await bot.sendMessage(chatId, 'Orbit cleared. All tasks removed.');
-    } else if (msg.voice) {
-      await bot.sendChatAction(chatId, 'typing');
-
-      // Handle voice message
-      const transcription = await transcribeVoiceMessage(msg.voice.file_id, chatId);
-
-      if (transcription) {
-        // Add user's transcribed message to the conversation history
-        conversationHistory.push({ role: 'user', content: transcription });
-
-        // Limit conversation history
-        if (conversationHistory.length > MAX_HISTORY_LENGTH * 2) {
-          conversationHistory = conversationHistory.slice(-MAX_HISTORY_LENGTH * 2);
-        }
-
-        // Get the response from the Groq API
-        const response = await getGroqChatCompletion(conversationHistory);
-
-        // Add assistant's response to the conversation history
-        conversationHistory.push({ role: 'assistant', content: response });
-
-        // Save updated conversation history to Redis with expiration
-        await redisClient.setEx(
-          `conversation:${chatId}`,
-          INACTIVITY_TIMEOUT_SECONDS,
-          JSON.stringify(conversationHistory)
-        );
-
-        // Send the response
-        const formattedResponse = formatMessage(response);
-        await sendMessageInChunks(chatId, formattedResponse);
-        logger.info(`Processed voice message for chat ID ${chatId}.`);
-        
-      }
-    } else if (msg.text) {
-      await bot.sendChatAction(chatId, 'typing');
-
-      // Add user's message to the conversation history
-      conversationHistory.push({ role: 'user', content: msg.text });
-
-      // Limit conversation history
-      if (conversationHistory.length > MAX_HISTORY_LENGTH * 2) {
-        conversationHistory = conversationHistory.slice(-MAX_HISTORY_LENGTH * 2);
-      }
-
-      // Get the response from the Groq API
-      const response = await getGroqChatCompletion(conversationHistory);
-
-      // Add assistant's response to the conversation history
-      conversationHistory.push({ role: 'assistant', content: response });
-
-      // Save updated conversation history to Redis with expiration
-      await redisClient.setEx(
-        `conversation:${chatId}`,
-        INACTIVITY_TIMEOUT_SECONDS,
-        JSON.stringify(conversationHistory)
-      );
-
-      // Send the response
-      const formattedResponse = formatMessage(response);
-      await sendMessageInChunks(chatId, formattedResponse);
-      logger.info(`Processed text message for chat ID ${chatId}.`);
-      await telelogger.sendMessage(telegramAdminId, `[message] ${JSON.stringify(msg)}`);
-    } else {
-      await bot.sendMessage(chatId, 'Please send a text or voice message.');
-      logger.warn(`Received unrecognized message type from chat ID ${chatId}.`);
-  
-    }
-  } catch (error) {
-    logger.error('Error processing message:', error);
-    await bot.sendMessage(msg.chat.id, 'Error: Unable to process your request.');
-    await telelogger.sendMessage(telegramAdminId, `[message] Error logged by - ${msg.chat.id}. ${error} ----- ${JSON.stringify(msg)}`);
-  }
+// Bot Event Listeners
+bot.on('message', (msg) => {
+  messageHandler.handleMessage(msg);
 });
-
-
-
-
-async function transcribeVoiceMessage(fileId, chatId) {
-  // Declare tempFilePath outside the try block
-  const tempFilePath = path.join(__dirname, `temp_audio_${chatId}.ogg`);
-
-  try {
-    // Get the file path from Telegram
-    const file = await bot.getFile(fileId);
-    const fileUrl = `https://api.telegram.org/file/bot${telegramBotApiKey}/${file.file_path}`;
-
-    // Download the audio file and save it locally
-    const response = await axios.get(fileUrl, {
-      responseType: 'stream',
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-    });
-
-    // Create a write stream to save the file
-    const writer = fs.createWriteStream(tempFilePath);
-
-    // Pipe the response data to the file
-    response.data.pipe(writer);
-
-    // Wait for the file to finish writing
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
-
-    // Check the file size
-    const stats = fs.statSync(tempFilePath);
-    const maxFileSize = 20 * 1024 * 1024; // 20 MB
-    if (stats.size > maxFileSize) {
-      fs.unlinkSync(tempFilePath); // Delete the temp file
-      await bot.sendMessage(chatId, 'The voice message is too large. Please send a smaller file.');
-      return null;
-    }
-
-    // Create a read stream from the saved file
-    const audioStream = fs.createReadStream(tempFilePath);
-
-    // Send the audio file to the Groq API for transcription
-    const transcriptionResult = await groqClient.audio.transcriptions.create({
-      file: audioStream,
-      model: 'whisper-large-v3', // Use the transcription model
-    });
-
-    // Delete the temp file after transcription
-    fs.unlinkSync(tempFilePath);
-
-    return transcriptionResult.text;
-  } catch (error) {
-    // If there's an error, ensure the temp file is deleted
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
-
-    // **Log the error**
-    logger.error('Error transcribing voice message:', error.response?.data || error.message);
-
-    await bot.sendMessage(chatId, 'Unable to transcribe voice message.');
-    return null;
-  }
-}
-
-async function getGroqChatCompletion(conversation) {
-  try {
-    const chatCompletion = await groqClient.chat.completions.create({
-      messages: conversation,
-      model: textModel,
-    });
-    logger.info('Received chat completion from Groq API.');
-    return chatCompletion.choices[0]?.message?.content || '';
-  } catch (error) {
-    logger.error('Unable to get chat completion from Groq API:', error);
-    throw new Error(`Unable to get chat completion from Groq API: ${error.message}`);
-  }
-}
-
-async function sendMessageInChunks(chatId, text) {
-  const chunkSize = 4096;
-  for (let i = 0; i < text.length; i += chunkSize) {
-    const chunk = text.substring(i, i + chunkSize);
-    await bot.sendMessage(chatId, chunk, { parse_mode: 'HTML' });
-  }
-}
-// ... (Your formatting functions remain unchanged)
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function applyHandPoints(text) {
-  return text.replace(/^(#+) (.*)$/gm, '<b>$2</b>');
-}
-
-function applyBold(text) {
-  return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-}
-
-function applyItalic(text) {
-  return text.replace(/(?<!\*)\*(?!\*)(?!\*\*)(.*?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
-}
-
-function applyCode(text) {
-  return text.replace(/```([\w]*?)\n([\s\S]*?)```/g, '<pre lang="$1">\n$2\n</pre>');
-}
-
-function applyMonospace(text) {
-  return text.replace(/(?<!`)`(?!`)(.*?)(?<!`)`(?!`)/g, '<code>$1</code>');
-}
-
-function applyLink(text) {
-  return text.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
-}
-
-function applyUnderline(text) {
-  return text.replace(/__(.*?)__/g, '<u>$1</u>');
-}
-
-function applyStrikethrough(text) {
-  return text.replace(/~~(.*?)~~/g, '<s>$1</s>');
-}
-
-function applyHeader(text) {
-  return text.replace(/^(#{1,6})\s+(.*)/gm, '<b><u>$2</u></b>');
-}
-
-function applyExcludeCode(text) {
-  const lines = text.split('\n');
-  let inCodeBlock = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('```')) {
-      inCodeBlock = !inCodeBlock;
-    }
-
-    if (!inCodeBlock) {
-      let formattedLine = lines[i];
-      formattedLine = applyHeader(formattedLine);
-      formattedLine = applyLink(formattedLine);
-      formattedLine = applyBold(formattedLine);
-      formattedLine = applyItalic(formattedLine);
-      formattedLine = applyUnderline(formattedLine);
-      formattedLine = applyStrikethrough(formattedLine);
-      formattedLine = applyMonospace(formattedLine);
-      formattedLine = applyHandPoints(formattedLine);
-      lines[i] = formattedLine;
-    }
-  }
-
-  return lines.join('\n');
-}
-
-function formatMessage(text) {
-  const formattedText = escapeHtml(text);
-  const formattedTextWithCode = applyExcludeCode(formattedText);
-  const formattedTextWithCodeBlocks = applyCode(formattedTextWithCode);
-  return formattedTextWithCodeBlocks;
-}
-
 
 bot.on('error', (error) => {
   logger.error('Telegram bot encountered an error:', error);
@@ -372,7 +41,8 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  logger.info(`Health check server running on port ${PORT}`);
+server.listen(config.server.port, () => {
+  logger.info(`Health check server running on port ${config.server.port}`);
 });
+
+logger.info('Bot started successfully.');
