@@ -68,7 +68,7 @@ export class MessageHandler {
     }
 
     async saveConversationHistory(chatId, history) {
-        await redisClient.setEx(
+        await redisClient.setex(
             `conversation:${chatId}`,
             config.limits.inactivityTimeout,
             JSON.stringify(history)

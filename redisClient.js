@@ -1,20 +1,14 @@
-// redisClient.js
-import { createClient } from 'redis';
-import dotenv from 'dotenv';
+import { Redis } from '@upstash/redis';
+import config from './config.js';
 import logger from './utils/logger.js';
 
-dotenv.config();
+// Initialize Upstash Redis
+// It automatically looks for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+// Or we can pass them explicitly from our config if mapped.
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-
-const redisClient = createClient({
-  url: redisUrl,
+const redisClient = new Redis({
+  url: config.redis.url,
+  token: config.redis.token,
 });
-
-redisClient.on('error', (err) => {
-  logger.error('Redis Client Error', err);
-});
-
-await redisClient.connect();
 
 export default redisClient;

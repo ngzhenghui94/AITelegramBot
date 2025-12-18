@@ -1,34 +1,10 @@
-import Groq from 'groq-sdk';
-import TelegramBot from 'node-telegram-bot-api';
 import http from 'http';
 import config from './config.js';
 import logger from './utils/logger.js';
-import redisClient from './redisClient.js';
-import { MessageHandler } from './handlers/messageHandler.js';
+import { createBot } from './botSetup.js';
 
-// Initialize Groq
-const groqClient = new Groq({ apiKey: config.groq.apiKey });
-
-// Initialize Telegram Bot
-const bot = new TelegramBot(config.telegram.botApiKey, { polling: true });
-
-// Initialize Logger Bot (if configured)
-let telelogger;
-if (config.telegram.logApiKey) {
-  telelogger = new TelegramBot(config.telegram.logApiKey);
-}
-
-// Initialize Message Handler
-const messageHandler = new MessageHandler(bot, groqClient, telelogger);
-
-// Bot Event Listeners
-bot.on('message', (msg) => {
-  messageHandler.handleMessage(msg);
-});
-
-bot.on('error', (error) => {
-  logger.error('Telegram bot encountered an error:', error);
-});
+// Initialize Bot with Polling (for local development/Heroku)
+const { bot } = createBot({ polling: true });
 
 // Health check server
 const server = http.createServer((req, res) => {

@@ -13,7 +13,7 @@ export async function addTask(chatId, description, time) {
     try {
         const key = `${KEY_PREFIX}:${chatId}`;
         const task = { description, time, createdAt: new Date().toISOString() };
-        await redisClient.rPush(key, JSON.stringify(task));
+        await redisClient.rpush(key, JSON.stringify(task));
         logger.info(`Task added for chat ID ${chatId}: ${description} at ${time}`);
     } catch (error) {
         logger.error(`Error adding task for chat ID ${chatId}:`, error);
@@ -29,7 +29,7 @@ export async function addTask(chatId, description, time) {
 export async function getTasks(chatId) {
     try {
         const key = `${KEY_PREFIX}:${chatId}`;
-        const tasks = await redisClient.lRange(key, 0, -1);
+        const tasks = await redisClient.lrange(key, 0, -1);
         return tasks.map(t => JSON.parse(t));
     } catch (error) {
         logger.error(`Error getting tasks for chat ID ${chatId}:`, error);

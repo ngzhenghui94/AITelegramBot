@@ -14,7 +14,8 @@ const config = {
         audioModel: 'whisper-large-v3',
     },
     redis: {
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
     },
     server: {
         port: process.env.PORT || 3000,
