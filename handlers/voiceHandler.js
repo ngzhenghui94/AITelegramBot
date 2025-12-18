@@ -4,15 +4,13 @@ import axios from 'axios';
 import { fileURLToPath } from 'url';
 import config from '../config.js';
 import logger from '../utils/logger.js';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const tempDir = path.resolve(__dirname, '..', 'temp');
+const tempDir = os.tmpdir();
 
-// Ensure temp directory exists
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
-}
+
 
 export async function transcribeVoiceMessage(bot, groqClient, fileId, chatId) {
     const tempFilePath = path.join(tempDir, `audio_${chatId}_${Date.now()}.ogg`);

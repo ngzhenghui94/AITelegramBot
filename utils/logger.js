@@ -16,23 +16,15 @@ const logger = winston.createLogger({
     winston.format.json() // Log in JSON format
   ),
   transports: [
-    // Log errors to error.log
-    new winston.transports.File({ filename: errorLog, level: 'error' }),
-    // Log all levels to combined.log
-    new winston.transports.File({ filename: combinedLog }),
+    // Always log to console in Vercel/Production for now as we can't write to files
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
   ],
 });
 
-// If not in production, also log to the console
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(), // Colorize console output
-        winston.format.simple()
-      ),
-    })
-  );
-}
 
 export default logger;
