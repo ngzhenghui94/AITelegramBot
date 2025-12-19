@@ -2,7 +2,7 @@ import { createBot } from '../botSetup.js';
 import config from '../config.js';
 
 // Initialize bot WITHOUT polling
-const { bot } = createBot({ polling: false });
+const { bot, messageHandler } = createBot({ polling: false });
 
 export default async function handler(req, res) {
     try {
@@ -10,8 +10,8 @@ export default async function handler(req, res) {
             const { body } = req;
 
             // Process the update
-            if (body) {
-                bot.processUpdate(body);
+            if (body && body.message) {
+                await messageHandler.handleMessage(body.message);
             }
 
             res.status(200).json({ ok: true });
