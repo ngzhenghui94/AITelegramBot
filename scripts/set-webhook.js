@@ -36,7 +36,7 @@ async function setWebhook(url) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url: webhookUrl,
-      allowed_updates: ['message'],
+      allowed_updates: ['message', 'callback_query'],
     }),
   });
   
@@ -107,4 +107,3 @@ if (command === '--delete') {
   console.error('Error: Invalid argument. Provide a URL or use --delete/--info');
   process.exit(1);
 }
-
