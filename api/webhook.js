@@ -4,6 +4,26 @@ export const config = {
   maxDuration: 30,
 };
 
+function summarizeUpdate(update) {
+  const message = update?.message;
+  const callbackQuery = update?.callback_query;
+  const callbackMessage = callbackQuery?.message;
+  const chat = message?.chat || callbackMessage?.chat;
+  const from = message?.from || callbackQuery?.from;
+
+  return {
+    update_id: update?.update_id,
+    update_type: callbackQuery ? 'callback_query' : message ? 'message' : 'unknown',
+    chat_id: chat?.id,
+    chat_type: chat?.type,
+    from_id: from?.id,
+    from_username: from?.username,
+    text: message?.text,
+    has_voice: Boolean(message?.voice),
+    has_caption: Boolean(message?.caption),
+  };
+}
+
 export default async function handler(req, res) {
   console.log('Webhook received:', req.method);
   
@@ -13,7 +33,7 @@ export default async function handler(req, res) {
 
   try {
     const update = req.body;
-    console.log('Update received:', JSON.stringify(update, null, 2));
+    console.log('Update summary:', JSON.stringify(summarizeUpdate(update)));
     
     if (!update) {
       console.error('No update body received');
@@ -41,4 +61,3 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, error: error.message });
   }
 }
-

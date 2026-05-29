@@ -76,7 +76,10 @@ Edit `.env` with your credentials:
 ```env
 TELEGRAM_BOT_API_KEY=your_telegram_bot_token
 GROQ_API_KEY=your_groq_api_key
-REDIS_URL=redis://default:password@your-redis-host:port
+UPSTASH_REDIS_REST_URL=https://your-upstash-redis-url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+RATE_LIMIT_PER_CHAT_PER_HOUR=20
+RATE_LIMIT_GLOBAL_PER_DAY=200
 ```
 
 ---
@@ -108,7 +111,10 @@ Go to your [Vercel Dashboard](https://vercel.com/dashboard) → Your Project →
 Add the following variables:
 - `TELEGRAM_BOT_API_KEY`
 - `GROQ_API_KEY`
-- `REDIS_URL`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `RATE_LIMIT_PER_CHAT_PER_HOUR` (optional, defaults to `20`)
+- `RATE_LIMIT_GLOBAL_PER_DAY` (optional, defaults to `200`)
 - `AI_MODEL` (optional, defaults to `llama-3.3-70b-versatile`)
 - `ADMINID` (optional)
 - `LOGAPIKEY` (optional)
@@ -158,13 +164,19 @@ For serverless environments, [Upstash Redis](https://upstash.com/) is recommende
 
 1. Create a free account at [upstash.com](https://upstash.com/)
 2. Create a new Redis database
-3. Copy the Redis URL from the dashboard
-4. Set it as `REDIS_URL` in your environment variables
+3. Copy the REST URL and REST token from the dashboard
+4. Set them as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in your environment variables
 
-Example URL format:
-```
-redis://default:your-password@your-region.upstash.io:6379
-```
+Redis is used for conversation history and cross-instance rate limits. Without Upstash configured, rate limits fall back to in-memory counters, which are useful locally but not reliable across Vercel serverless instances.
+
+## Rate Limits
+
+AI calls are capped before Groq is called:
+
+- `RATE_LIMIT_PER_CHAT_PER_HOUR`: maximum AI requests per chat per UTC hour. Default: `20`.
+- `RATE_LIMIT_GLOBAL_PER_DAY`: maximum total AI requests across all chats per UTC day. Default: `200`.
+
+Commands such as `/start` and `/clear` do not count against the AI limits.
 
 ---
 
@@ -206,9 +218,9 @@ npm run delete-webhook
 
 ### Redis connection issues?
 
-1. Verify `REDIS_URL` is correct
-2. Ensure your Redis provider allows connections from Vercel's IPs
-3. Check if SSL/TLS is required (use `rediss://` instead of `redis://`)
+1. Verify `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are correct
+2. Ensure the Upstash database is active
+3. Check Vercel logs for Redis warnings
 
 ---
 
