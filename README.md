@@ -15,6 +15,8 @@ This bot leverages cutting-edge AI models like `llama-3.3-70b-versatile` for tex
 - **Commands**:
   - `/start`: Start a new conversation.
   - `/clear`: Clear the current conversation history.
+  - `/reset`: Clear the current conversation history.
+  - `/compact`: Summarize the current conversation history into a shorter session memory.
 
 ---
 

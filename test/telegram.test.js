@@ -89,3 +89,87 @@ test('handleUpdate does not throw when Telegram cannot send the fallback error r
 
   assert.deepEqual(methods, ['sendChatAction', 'sendMessage']);
 });
+
+test('/reset clears the session without sending a typing action', async (t) => {
+  const originalFetch = global.fetch;
+  const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
+  t.after(() => {
+    global.fetch = originalFetch;
+    if (originalTelegramToken === undefined) {
+      delete process.env.TELEGRAM_BOT_API_KEY;
+    } else {
+      process.env.TELEGRAM_BOT_API_KEY = originalTelegramToken;
+    }
+  });
+
+  process.env.TELEGRAM_BOT_API_KEY = 'test-token';
+  const requests = [];
+
+  global.fetch = async (url, options) => {
+    requests.push({
+      method: url.split('/').pop(),
+      body: JSON.parse(options.body),
+    });
+
+    return {
+      json: async () => ({
+        ok: true,
+        result: { message_id: 456 },
+      }),
+    };
+  };
+
+  await handleUpdate({
+    update_id: 2,
+    message: {
+      message_id: 2,
+      chat: { id: 151894779, type: 'private' },
+      text: '/reset',
+    },
+  });
+
+  assert.deepEqual(requests.map((request) => request.method), ['sendMessage']);
+  assert.equal(requests[0].body.text, 'Conversation history cleared.');
+});
+
+test('/compact with no stored session replies without calling typing', async (t) => {
+  const originalFetch = global.fetch;
+  const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
+  t.after(() => {
+    global.fetch = originalFetch;
+    if (originalTelegramToken === undefined) {
+      delete process.env.TELEGRAM_BOT_API_KEY;
+    } else {
+      process.env.TELEGRAM_BOT_API_KEY = originalTelegramToken;
+    }
+  });
+
+  process.env.TELEGRAM_BOT_API_KEY = 'test-token';
+  const requests = [];
+
+  global.fetch = async (url, options) => {
+    requests.push({
+      method: url.split('/').pop(),
+      body: JSON.parse(options.body),
+    });
+
+    return {
+      json: async () => ({
+        ok: true,
+        result: { message_id: 789 },
+      }),
+    };
+  };
+
+  await handleUpdate({
+    update_id: 3,
+    message: {
+      message_id: 3,
+      chat: { id: 151894779, type: 'private' },
+      text: '/compact',
+    },
+  });
+
+  assert.deepEqual(requests.map((request) => request.method), ['sendMessage']);
+  assert.match(requests[0].body.text, /No conversation history/i);
+});
