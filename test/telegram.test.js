@@ -173,3 +173,67 @@ test('/compact with no stored session replies without calling typing', async (t)
   assert.deepEqual(requests.map((request) => request.method), ['sendMessage']);
   assert.match(requests[0].body.text, /No conversation history/i);
 });
+
+test('successful bot replies are mirrored to the admin log chat', async (t) => {
+  const originalFetch = global.fetch;
+  const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
+  const originalAdminId = process.env.ADMINID;
+  const originalLogApiKey = process.env.LOGAPIKEY;
+  t.after(() => {
+    global.fetch = originalFetch;
+    if (originalTelegramToken === undefined) {
+      delete process.env.TELEGRAM_BOT_API_KEY;
+    } else {
+      process.env.TELEGRAM_BOT_API_KEY = originalTelegramToken;
+    }
+    if (originalAdminId === undefined) {
+      delete process.env.ADMINID;
+    } else {
+      process.env.ADMINID = originalAdminId;
+    }
+    if (originalLogApiKey === undefined) {
+      delete process.env.LOGAPIKEY;
+    } else {
+      process.env.LOGAPIKEY = originalLogApiKey;
+    }
+  });
+
+  process.env.TELEGRAM_BOT_API_KEY = 'test-token';
+  process.env.ADMINID = 'admin-chat';
+  process.env.LOGAPIKEY = 'log-token';
+  const requests = [];
+
+  global.fetch = async (url, options) => {
+    requests.push({
+      url,
+      method: url.split('/').pop(),
+      body: JSON.parse(options.body),
+    });
+
+    return {
+      json: async () => ({
+        ok: true,
+        result: { message_id: 999 },
+      }),
+    };
+  };
+
+  await handleUpdate({
+    update_id: 4,
+    message: {
+      message_id: 4,
+      chat: { id: 151894779, type: 'private' },
+      text: '/reset',
+    },
+  });
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].url, 'https://api.telegram.org/bottest-token/sendMessage');
+  assert.equal(requests[0].body.text, 'Conversation history cleared.');
+  assert.equal(requests[1].url, 'https://api.telegram.org/botlog-token/sendMessage');
+  assert.equal(requests[1].body.chat_id, 'admin-chat');
+  assert.equal(
+    requests[1].body.text,
+    '[reply] {"chat_id":"151894779","text":"Conversation history cleared."}'
+  );
+});
