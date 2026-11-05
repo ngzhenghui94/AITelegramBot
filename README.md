@@ -1,6 +1,6 @@
 # OpenAI-Powered Telegram Chatbot
 
-A Telegram bot powered by OpenAI for text and voice messages, designed to run on **Vercel** serverless functions.
+A private Telegram bot powered by OpenAI for text and voice messages, designed to run on **Vercel** serverless functions.
 
 Chat replies, follow-up questions, and conversation compaction use the Responses API with `gpt-6.1-sol` by default. Voice messages use `gpt-transcribe` through the audio transcription API.
 
@@ -8,6 +8,7 @@ Chat replies, follow-up questions, and conversation compaction use the Responses
 
 ## Features
 
+- **Admin-Only Access**: Responds only in the private chat whose numeric ID matches `ADMINID`. Other chats, groups, commands, and button presses are silently ignored before AI or storage calls. If `ADMINID` is missing or empty, the bot replies to nobody.
 - **Text Message Handling**: Generate replies and follow-up buttons with OpenAI's Responses API.
 - **Voice Message Transcription**: Transcribe Telegram OGG voice messages with OpenAI, then generate a reply.
 - **Conversation History**: Maintains context using Redis for intelligent responses.
@@ -73,6 +74,7 @@ Create a local `.env` file with your credentials. This file is ignored by Git; n
 TELEGRAM_BOT_API_KEY=your_telegram_bot_token
 OPENAI_API_KEY=your-openai-api-key
 AI_MODEL=gpt-6.1-sol
+ADMINID=123456789
 UPSTASH_REDIS_REST_URL=https://your-upstash-redis-url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 RATE_LIMIT_PER_CHAT_PER_HOUR=20
@@ -113,7 +115,7 @@ Add the following variables:
 - `RATE_LIMIT_PER_CHAT_PER_HOUR` (optional, defaults to `20`)
 - `RATE_LIMIT_GLOBAL_PER_DAY` (optional, defaults to `200`)
 - `AI_MODEL` (optional, defaults to `gpt-6.1-sol`; the model for chats that have not used `/model`, and must be one of the `/model` options)
-- `ADMINID` (optional; the chat that receives admin logs and the only chat that can select `gpt-6-astra`)
+- `ADMINID` (required; your numeric Telegram private chat ID, not a username or group ID; also receives admin logs when `LOGAPIKEY` is set)
 - `LOGAPIKEY` (optional)
 
 The OpenAI key needs access to `POST /v1/responses` and `POST /v1/audio/transcriptions`. Model listing, file storage, and agent permissions are not needed. Configure the key in every Vercel environment where the bot will run.
@@ -174,16 +176,16 @@ Redis is used for conversation history, per-chat model choices, and cross-instan
 
 ## Models
 
-Each chat can choose its model with `/model`. The choice is used for replies, follow-up buttons, and `/compact`, and is saved in Redis until changed. Voice transcription always uses `gpt-transcribe`.
+In the admin chat, use `/model` to choose any of the four models below. The choice is used for replies, follow-up buttons, and `/compact`, and is saved in Redis until changed. Sol is the default. Voice transcription always uses `gpt-transcribe`.
 
-| Model | Button | Input / output price per 1M tokens | Who can select it |
-|---|---|---|---|
-| `gpt-6-luna` | Luna · fastest | $0.10 / $0.50 | Every chat |
-| `gpt-6.1-terra` | Terra · balanced | $1.00 / $5.00 | Every chat |
-| `gpt-6.1-sol` | Sol · advanced | $2.00 / $10.00 | Every chat (default) |
-| `gpt-6-astra` | Astra · most capable | $10.00 / $50.00 | `ADMINID` chat only |
+| Model | Button | Input / output price per 1M tokens |
+|---|---|---|
+| `gpt-6-luna` | Luna · fastest | $0.10 / $0.50 |
+| `gpt-6.1-terra` | Terra · balanced | $1.00 / $5.00 |
+| `gpt-6.1-sol` | Sol · advanced | $2.00 / $10.00 |
+| `gpt-6-astra` | Astra · most capable | $10.00 / $50.00 |
 
-Prices are OpenAI's standard rates at the time of writing; check [OpenAI pricing](https://developers.openai.com/api/docs/pricing) for current rates. Astra is restricted because the rate limits count prompts, not dollars, and Astra costs 5× Sol per token. To change the list, edit `MODELS` in `lib/openai.js`.
+Prices are OpenAI's standard rates at the time of writing; check [OpenAI pricing](https://developers.openai.com/api/docs/pricing) for current rates. Rate limits count prompts, not dollars, and Astra costs 5× Sol per token. To change the list, edit `MODELS` in `lib/openai.js`.
 
 ## Rate Limits
 

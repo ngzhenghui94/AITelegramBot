@@ -5,6 +5,15 @@ import { handleUpdate, sendMessageInChunks } from '../lib/telegram.js';
 import { DEFAULT_MODEL } from '../lib/openai.js';
 import { checkRateLimit, resetInMemoryRateLimits } from '../lib/rateLimit.js';
 
+function authorizeChat(t, chatId) {
+  const previousAdminId = process.env.ADMINID;
+  process.env.ADMINID = chatId;
+  t.after(() => {
+    if (previousAdminId === undefined) delete process.env.ADMINID;
+    else process.env.ADMINID = previousAdminId;
+  });
+}
+
 test('sendMessageInChunks retries without HTML parse mode when Telegram rejects entities', async (t) => {
   const originalFetch = global.fetch;
   const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
@@ -52,6 +61,7 @@ test('sendMessageInChunks retries without HTML parse mode when Telegram rejects 
 });
 
 test('handleUpdate does not throw when Telegram cannot send the fallback error reply', async (t) => {
+  authorizeChat(t, '1');
   const originalFetch = global.fetch;
   const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
   t.after(() => {
@@ -93,6 +103,7 @@ test('handleUpdate does not throw when Telegram cannot send the fallback error r
 });
 
 test('/reset clears the session without sending a typing action', async (t) => {
+  authorizeChat(t, '151894779');
   const originalFetch = global.fetch;
   const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
   t.after(() => {
@@ -135,6 +146,7 @@ test('/reset clears the session without sending a typing action', async (t) => {
 });
 
 test('/compact with no stored session replies without calling typing', async (t) => {
+  authorizeChat(t, '151894779');
   const originalFetch = global.fetch;
   const originalTelegramToken = process.env.TELEGRAM_BOT_API_KEY;
   t.after(() => {
@@ -201,7 +213,7 @@ test('successful bot replies are mirrored to the admin log chat', async (t) => {
   });
 
   process.env.TELEGRAM_BOT_API_KEY = 'test-token';
-  process.env.ADMINID = 'admin-chat';
+  process.env.ADMINID = '151894779';
   process.env.LOGAPIKEY = 'log-token';
   const requests = [];
 
@@ -231,13 +243,10 @@ test('successful bot replies are mirrored to the admin log chat', async (t) => {
 
   assert.equal(requests.length, 2);
   assert.equal(requests[0].url, 'https://api.telegram.org/bottest-token/sendMessage');
-  assert.equal(requests[0].body.text, 'Conversation history cleared.');
   assert.equal(requests[1].url, 'https://api.telegram.org/botlog-token/sendMessage');
-  assert.equal(requests[1].body.chat_id, 'admin-chat');
-  assert.equal(
-    requests[1].body.text,
-    '[reply] {"chat_id":"151894779","text":"Conversation history cleared."}'
-  );
+  assert.equal(requests[0].body.chat_id, '151894779');
+  assert.equal(requests[1].body.chat_id, '151894779');
+  assert.deepEqual(JSON.parse(requests[1].body.text.slice('[reply] '.length)), requests[0].body);
 });
 
 function captureTelegramRequests(t, adminId) {
@@ -267,39 +276,32 @@ function captureTelegramRequests(t, adminId) {
   return requests;
 }
 
-test('/model offers Astra only in the admin chat and marks the current model', async (t) => {
+test('/model lets the admin select Astra and marks the current model', async (t) => {
   const requests = captureTelegramRequests(t, '2002');
-  const pickerFor = async (chatId) => {
-    await handleUpdate({
-      update_id: 10,
-      message: { message_id: 10, chat: { id: chatId, type: 'private' }, text: '/model' },
-    });
-    return requests.at(-1).body.reply_markup.inline_keyboard.map(([button]) => button);
-  };
-
-  const userButtons = await pickerFor(1001);
-  assert.ok(!userButtons.some((button) => button.callback_data === 'model:gpt-6-astra'));
+  await handleUpdate({
+    update_id: 10,
+    message: { message_id: 10, chat: { id: 2002, type: 'private' }, text: '/model' },
+  });
+  const buttons = requests.at(-1).body.reply_markup.inline_keyboard.map(([button]) => button);
+  assert.ok(buttons.some((button) => button.callback_data === 'model:gpt-6-astra'));
   assert.deepEqual(
-    userButtons.filter((button) => button.text.startsWith('✓')).map((button) => button.callback_data),
+    buttons.filter((button) => button.text.startsWith('✓')).map((button) => button.callback_data),
     [`model:${DEFAULT_MODEL}`]
   );
-
-  const adminButtons = await pickerFor(2002);
-  assert.ok(adminButtons.some((button) => button.callback_data === 'model:gpt-6-astra'));
 });
 
-test('forged model callbacks cannot select models outside the chat allowlist', async (t) => {
+test('forged model callbacks cannot select models outside the allowlist', async (t) => {
   const requests = captureTelegramRequests(t, '2002');
-
-  for (const data of ['model:gpt-6-astra', 'model:gpt-5.5-pro']) {
-    await handleUpdate({
-      update_id: 11,
-      callback_query: { id: 'model-callback', data, message: { chat: { id: 1001, type: 'private' } } },
-    });
-  }
-
-  assert.deepEqual(requests.map((request) => request.method), ['answerCallbackQuery', 'answerCallbackQuery']);
-  assert.ok(requests.every((request) => request.body.text === 'This model is not available.'));
+  await handleUpdate({
+    update_id: 11,
+    callback_query: {
+      id: 'model-callback',
+      data: 'model:not-a-model',
+      message: { chat: { id: 2002, type: 'private' } },
+    },
+  });
+  assert.deepEqual(requests.map((request) => request.method), ['answerCallbackQuery']);
+  assert.match(requests[0].body.text, /not available/i);
 });
 
 test('a model choice is not confirmed when it cannot be saved', async (t) => {
@@ -310,7 +312,7 @@ test('a model choice is not confirmed when it cannot be saved', async (t) => {
     callback_query: {
       id: 'model-callback',
       data: 'model:gpt-6.1-terra',
-      message: { chat: { id: 1001, type: 'private' } },
+      message: { chat: { id: 2002, type: 'private' } },
     },
   });
 
@@ -319,7 +321,7 @@ test('a model choice is not confirmed when it cannot be saved', async (t) => {
 });
 
 test('a voice message from a rate-limited chat is not downloaded or transcribed', async (t) => {
-  const requests = captureTelegramRequests(t, '2002');
+  const requests = captureTelegramRequests(t, '3003');
   const originalLimit = process.env.RATE_LIMIT_PER_CHAT_PER_HOUR;
   t.after(() => {
     if (originalLimit === undefined) delete process.env.RATE_LIMIT_PER_CHAT_PER_HOUR;
@@ -336,4 +338,47 @@ test('a voice message from a rate-limited chat is not downloaded or transcribed'
 
   assert.deepEqual(requests.map((request) => request.method), ['sendChatAction', 'sendMessage']);
   assert.match(requests[1].body.text, /Hourly limit reached/);
+});
+
+test('non-admin messages and callbacks are ignored before any network calls', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+  const chat = { id: 1001, type: 'private' };
+  const messages = [
+    { text: 'hello' },
+    { voice: { file_id: 'voice-file' } },
+    ...['/start', '/clear', '/reset', '/compact', '/model'].map((text) => ({ text })),
+    { photo: [{ file_id: 'photo-file' }] },
+  ];
+  for (const message of messages) {
+    await handleUpdate({ message: { ...message, chat } });
+  }
+  for (const data of ['followup:Give an example?', 'model:gpt-6-astra', 'unknown']) {
+    await handleUpdate({ callback_query: { id: 'blocked-callback', data, message: { chat } } });
+  }
+  assert.deepEqual(requests, []);
+});
+
+test('missing or empty ADMINID disables replies', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+  for (const adminId of [undefined, '']) {
+    if (adminId === undefined) delete process.env.ADMINID;
+    else process.env.ADMINID = adminId;
+    await handleUpdate({ message: { chat: { id: 2002, type: 'private' }, text: '/start' } });
+    await handleUpdate({
+      callback_query: {
+        id: 'disabled-callback',
+        data: 'model:gpt-6-astra',
+        message: { chat: { id: 2002, type: 'private' } },
+      },
+    });
+  }
+  assert.deepEqual(requests, []);
+});
+
+test('a group cannot be authorized by setting ADMINID to its chat ID', async (t) => {
+  const requests = captureTelegramRequests(t, '-1002002');
+  await handleUpdate({
+    message: { chat: { id: -1002002, type: 'supergroup' }, from: { id: 2002 }, text: '/start' },
+  });
+  assert.deepEqual(requests, []);
 });
