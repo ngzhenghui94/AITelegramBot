@@ -1,0 +1,22 @@
+FROM debian:trixie-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates bash curl git openssh-client python3 python3-venv \
+       nodejs npm chromium fonts-liberation procps unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 agent \
+    && useradd --uid 10001 --gid agent --create-home --shell /bin/bash agent \
+    && mkdir -p /workspace /home/agent/sessions \
+    && chown -R agent:agent /workspace /home/agent
+
+COPY --chmod=755 omp /usr/local/bin/omp
+
+ENV HOME=/home/agent \
+    SHELL=/bin/bash \
+    OMP_SKIP_SETUP=1 \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+USER 10001:10001
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/omp"]

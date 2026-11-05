@@ -1,25 +1,20 @@
 {
   "name": "telegramgrokaibot",
   "version": "2.0.0",
-  "description": "OpenAI-powered Telegram chatbot for Vercel",
-  "main": "index.js",
+  "description": "Private Telegram agent powered by the isolated OMP harness",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
-    "deploy": "vercel --prod",
+    "start": "node scripts/start.js",
+    "setup-agent": "node scripts/setup-agent.js",
     "test": "node --test",
-    "set-webhook": "node scripts/set-webhook.js",
-    "delete-webhook": "node scripts/set-webhook.js --delete",
-    "webhook-info": "node scripts/set-webhook.js --info"
+    "delete-webhook": "node scripts/webhook.js --delete",
+    "webhook-info": "node scripts/webhook.js --info"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@upstash/redis": "^1.28.0",
     "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
-    "vercel": "^37.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
