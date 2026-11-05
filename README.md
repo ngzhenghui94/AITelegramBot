@@ -187,14 +187,14 @@ Prices are OpenAI's standard rates at the time of writing; check [OpenAI pricing
 
 ## Rate Limits
 
-Prompt processing is limited before OpenAI text generation:
+Each prompt is checked against these limits before its first OpenAI call:
 
 - `RATE_LIMIT_PER_CHAT_PER_HOUR`: maximum accepted prompts per chat per UTC hour. Default: `20`.
 - `RATE_LIMIT_GLOBAL_PER_DAY`: maximum accepted prompts across all chats per UTC day. Default: `200`.
 
 Commands such as `/start` and `/clear` do not count against the AI limits.
 
-An accepted prompt normally makes two Responses API calls: one reply and one follow-up-question request. `/compact` counts as one prompt and makes one Responses call. Voice transcription runs before these checks, so these limits are not a hard spending cap on transcription or total API usage.
+An accepted prompt normally makes two Responses API calls: one reply and one follow-up-question request. A voice message counts as one prompt and is checked before transcription, so a blocked chat's audio is never sent to OpenAI. `/compact` counts as one prompt and makes one Responses call. The limits count prompts, not tokens or audio length, so they are not a hard dollar cap.
 
 ---
 

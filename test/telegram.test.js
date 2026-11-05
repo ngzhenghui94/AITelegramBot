@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { handleUpdate, sendMessageInChunks } from '../lib/telegram.js';
 import { DEFAULT_MODEL } from '../lib/openai.js';
+import { checkRateLimit, resetInMemoryRateLimits } from '../lib/rateLimit.js';
 
 test('sendMessageInChunks retries without HTML parse mode when Telegram rejects entities', async (t) => {
   const originalFetch = global.fetch;
@@ -315,4 +316,24 @@ test('a model choice is not confirmed when it cannot be saved', async (t) => {
 
   assert.deepEqual(requests.map((request) => request.method), ['answerCallbackQuery']);
   assert.match(requests[0].body.text, /Could not save/);
+});
+
+test('a voice message from a rate-limited chat is not downloaded or transcribed', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+  const originalLimit = process.env.RATE_LIMIT_PER_CHAT_PER_HOUR;
+  t.after(() => {
+    if (originalLimit === undefined) delete process.env.RATE_LIMIT_PER_CHAT_PER_HOUR;
+    else process.env.RATE_LIMIT_PER_CHAT_PER_HOUR = originalLimit;
+    resetInMemoryRateLimits();
+  });
+  process.env.RATE_LIMIT_PER_CHAT_PER_HOUR = '1';
+  await checkRateLimit('3003'); // uses the chat's only request this hour
+
+  await handleUpdate({
+    update_id: 13,
+    message: { message_id: 13, chat: { id: 3003, type: 'private' }, voice: { file_id: 'voice-file' } },
+  });
+
+  assert.deepEqual(requests.map((request) => request.method), ['sendChatAction', 'sendMessage']);
+  assert.match(requests[1].body.text, /Hourly limit reached/);
 });
