@@ -1,7 +1,8 @@
 import { handleUpdate } from '../lib/telegram.js';
 
 export const config = {
-  maxDuration: 30,
+  // Allow for sequential transcription, reply generation, and follow-up generation.
+  maxDuration: 300,
 };
 
 function summarizeUpdate(update) {
@@ -45,9 +46,9 @@ export default async function handler(req, res) {
       console.error('Missing TELEGRAM_BOT_API_KEY');
       return res.status(500).json({ error: 'Missing TELEGRAM_BOT_API_KEY' });
     }
-    if (!process.env.GROQ_API_KEY) {
-      console.error('Missing GROQ_API_KEY');
-      return res.status(500).json({ error: 'Missing GROQ_API_KEY' });
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('Missing OPENAI_API_KEY');
+      return res.status(500).json({ error: 'Missing OPENAI_API_KEY' });
     }
 
     // Process the update
