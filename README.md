@@ -17,6 +17,7 @@ Chat replies, follow-up questions, and conversation compaction use the Responses
   - `/clear`: Clear the current conversation history.
   - `/reset`: Clear the current conversation history.
   - `/compact`: Summarize the current conversation history into a shorter session memory.
+  - `/model`: Choose the AI model for the current chat.
 
 ---
 
@@ -111,13 +112,13 @@ Add the following variables:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `RATE_LIMIT_PER_CHAT_PER_HOUR` (optional, defaults to `20`)
 - `RATE_LIMIT_GLOBAL_PER_DAY` (optional, defaults to `200`)
-- `AI_MODEL` (optional, defaults to `gpt-6.1-sol`; must be an OpenAI model supporting the Responses API)
-- `ADMINID` (optional)
+- `AI_MODEL` (optional, defaults to `gpt-6.1-sol`; the model for chats that have not used `/model`, and must be one of the `/model` options)
+- `ADMINID` (optional; the chat that receives admin logs and the only chat that can select `gpt-6-astra`)
 - `LOGAPIKEY` (optional)
 
 The OpenAI key needs access to `POST /v1/responses` and `POST /v1/audio/transcriptions`. Model listing, file storage, and agent permissions are not needed. Configure the key in every Vercel environment where the bot will run.
 
-When migrating from Groq, replace the old `AI_MODEL` value with `gpt-6.1-sol` (or remove it to use the default). `GROQ_API_KEY` is no longer used. Environment changes require a new deployment.
+When migrating from Groq, replace the old `AI_MODEL` value with `gpt-6.1-sol` or remove it. An `AI_MODEL` value that is not a `/model` option, such as an old Groq model ID, is ignored with a warning and `gpt-6.1-sol` is used. `GROQ_API_KEY` is no longer used. Environment changes require a new deployment.
 
 Responses are requested with `store: false`; conversation history still uses Redis. Each OpenAI request has a 90-second timeout, and the webhook allows 300 seconds for the sequential voice, reply, and follow-up calls.
 
@@ -169,7 +170,20 @@ For serverless environments, [Upstash Redis](https://upstash.com/) is recommende
 3. Copy the REST URL and REST token from the dashboard
 4. Set them as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in your environment variables
 
-Redis is used for conversation history and cross-instance rate limits. Without Upstash configured, rate limits fall back to in-memory counters, which are useful locally but not reliable across Vercel serverless instances.
+Redis is used for conversation history, per-chat model choices, and cross-instance rate limits. Without Upstash configured, `/model` cannot save a choice, and rate limits fall back to in-memory counters, which are useful locally but not reliable across Vercel serverless instances.
+
+## Models
+
+Each chat can choose its model with `/model`. The choice is used for replies, follow-up buttons, and `/compact`, and is saved in Redis until changed. Voice transcription always uses `gpt-transcribe`.
+
+| Model | Button | Input / output price per 1M tokens | Who can select it |
+|---|---|---|---|
+| `gpt-6-luna` | Luna · fastest | $0.10 / $0.50 | Every chat |
+| `gpt-6.1-terra` | Terra · balanced | $1.00 / $5.00 | Every chat |
+| `gpt-6.1-sol` | Sol · advanced | $2.00 / $10.00 | Every chat (default) |
+| `gpt-6-astra` | Astra · most capable | $10.00 / $50.00 | `ADMINID` chat only |
+
+Prices are OpenAI's standard rates at the time of writing; check [OpenAI pricing](https://developers.openai.com/api/docs/pricing) for current rates. Astra is restricted because the rate limits count prompts, not dollars, and Astra costs 5× Sol per token. To change the list, edit `MODELS` in `lib/openai.js`.
 
 ## Rate Limits
 

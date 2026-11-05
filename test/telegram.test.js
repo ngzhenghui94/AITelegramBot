@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { handleUpdate, sendMessageInChunks } from '../lib/telegram.js';
+import { DEFAULT_MODEL } from '../lib/openai.js';
 
 test('sendMessageInChunks retries without HTML parse mode when Telegram rejects entities', async (t) => {
   const originalFetch = global.fetch;
@@ -236,4 +237,82 @@ test('successful bot replies are mirrored to the admin log chat', async (t) => {
     requests[1].body.text,
     '[reply] {"chat_id":"151894779","text":"Conversation history cleared."}'
   );
+});
+
+function captureTelegramRequests(t, adminId) {
+  const originalFetch = global.fetch;
+  const originalEnv = Object.fromEntries(
+    ['TELEGRAM_BOT_API_KEY', 'ADMINID', 'LOGAPIKEY'].map((key) => [key, process.env[key]])
+  );
+  t.after(() => {
+    global.fetch = originalFetch;
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
+  process.env.TELEGRAM_BOT_API_KEY = 'test-token';
+  process.env.ADMINID = adminId;
+  delete process.env.LOGAPIKEY;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ method: url.split('/').pop(), body: JSON.parse(options.body) });
+    return { json: async () => ({ ok: true, result: { message_id: 1 } }) };
+  };
+  return requests;
+}
+
+test('/model offers Astra only in the admin chat and marks the current model', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+  const pickerFor = async (chatId) => {
+    await handleUpdate({
+      update_id: 10,
+      message: { message_id: 10, chat: { id: chatId, type: 'private' }, text: '/model' },
+    });
+    return requests.at(-1).body.reply_markup.inline_keyboard.map(([button]) => button);
+  };
+
+  const userButtons = await pickerFor(1001);
+  assert.ok(!userButtons.some((button) => button.callback_data === 'model:gpt-6-astra'));
+  assert.deepEqual(
+    userButtons.filter((button) => button.text.startsWith('✓')).map((button) => button.callback_data),
+    [`model:${DEFAULT_MODEL}`]
+  );
+
+  const adminButtons = await pickerFor(2002);
+  assert.ok(adminButtons.some((button) => button.callback_data === 'model:gpt-6-astra'));
+});
+
+test('forged model callbacks cannot select models outside the chat allowlist', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+
+  for (const data of ['model:gpt-6-astra', 'model:gpt-5.5-pro']) {
+    await handleUpdate({
+      update_id: 11,
+      callback_query: { id: 'model-callback', data, message: { chat: { id: 1001, type: 'private' } } },
+    });
+  }
+
+  assert.deepEqual(requests.map((request) => request.method), ['answerCallbackQuery', 'answerCallbackQuery']);
+  assert.ok(requests.every((request) => request.body.text === 'This model is not available.'));
+});
+
+test('a model choice is not confirmed when it cannot be saved', async (t) => {
+  const requests = captureTelegramRequests(t, '2002');
+
+  await handleUpdate({
+    update_id: 12,
+    callback_query: {
+      id: 'model-callback',
+      data: 'model:gpt-6.1-terra',
+      message: { chat: { id: 1001, type: 'private' } },
+    },
+  });
+
+  assert.deepEqual(requests.map((request) => request.method), ['answerCallbackQuery']);
+  assert.match(requests[0].body.text, /Could not save/);
 });
