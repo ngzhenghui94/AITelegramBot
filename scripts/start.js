@@ -44,7 +44,7 @@ async function main() {
   let offset = 0;
   let ready = false;
   try {
-    for (const name of ['TELEGRAM_BOT_API_KEY', 'OPENAI_API_KEY', 'ADMINID']) {
+    for (const name of ['TELEGRAM_BOT_API_KEY', 'ANTHROPIC_API_KEY', 'ADMINID']) {
       if (!process.env[name]) {
         throw new Error(`Missing ${name}; configure it in .env before running npm start.`);
       }

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter, once } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { AgentBridge } from '../lib/agent.js';
+import { configuredClaudeModel } from '../lib/agentRuntime.js';
 
 const TELEGRAM_TASK_PREFIX = 'Telegram user request:\n\n';
 
@@ -81,10 +82,9 @@ async function withStateDir(t) {
   return stateDir;
 }
 
-function makeHarness({ onCommand, pointers = new Map(), setModelError = false } = {}) {
+function makeHarness({ onCommand, onSetModel, pointers = new Map(), models = new Map(), setModelError = false } = {}) {
   const children = [];
   const launches = [];
-  const models = new Map();
   const durableSessions = new Set(pointers.values());
   let sessionNumber = 0;
   const launch = ({ chatId, sessionFile }) => {
@@ -93,7 +93,7 @@ function makeHarness({ onCommand, pointers = new Map(), setModelError = false } 
       pointers.set(chatId, `/home/agent/sessions/chat-${chatId}.json`);
     }
     if (!models.has(chatId)) {
-      models.set(chatId, { provider: 'openai', id: 'gpt-test' });
+      models.set(chatId, { provider: 'anthropic', id: configuredClaudeModel() });
     }
 
     let child;
@@ -123,12 +123,16 @@ function makeHarness({ onCommand, pointers = new Map(), setModelError = false } 
           success: true,
           data: {
             models: [
-              { provider: 'openai', id: 'gpt-test', name: 'Test' },
+              { provider: 'anthropic', id: configuredClaudeModel(), name: 'Default Claude' },
               { provider: 'anthropic', id: 'claude-test', name: 'Claude test' },
             ],
           },
         });
       } else if (frame.type === 'set_model') {
+        if (typeof onSetModel === 'function') {
+          onSetModel({ frame, child, emit, state, pointers, models });
+          return;
+        }
         if (setModelError) {
           emit({
             type: 'response',
@@ -299,6 +303,152 @@ test('reset persists exact new pointer and the next bridge resumes it', async (t
   assert.equal(JSON.parse(await readFile(path.join(stateDir, '102.json'), 'utf8')).sessionFile, sessionFile);
 });
 
+test('resumed legacy or missing models migrate before work without replacing history or resending context', async (t) => {
+  for (const [name, model] of [
+    ['legacy provider', { provider: 'openai', id: 'gpt-old' }],
+    ['missing model', undefined],
+    ['worker substituted a different Claude model', { provider: 'anthropic', id: 'claude-auto-default' }],
+  ]) {
+    for (const kind of ['run', 'compact']) {
+      await t.test(`${name}: ${kind}`, async (t) => {
+        const stateDir = await withStateDir(t);
+        const sessionFile = '/home/agent/sessions/retained-history.json';
+        const selected = { provider: 'anthropic', id: configuredClaudeModel() };
+        await writeFile(path.join(stateDir, '120.json'), JSON.stringify({ sessionFile }));
+        const harness = makeHarness({
+          pointers: new Map([['120', sessionFile]]),
+          models: new Map([['120', model]]),
+          onCommand: ({ frame, emit, models, pointers }) => {
+            assert.deepEqual(models.get('120'), selected);
+            assert.equal(pointers.get('120'), sessionFile);
+            if (frame.type === 'prompt') {
+              promptFrames(emit, frame.id, 'continued history');
+            } else if (frame.type === 'compact') {
+              emit({ type: 'response', id: frame.id, command: frame.type, success: true, data: {} });
+            }
+          },
+        });
+        const bridge = new AgentBridge({ launch: harness.launch, stateDir, timeoutMs: 500 });
+        t.after(() => bridge.close());
+        const texts = [];
+        const starting = bridge.start(120);
+        const operation = kind === 'run'
+          ? bridge.run(120, 'continue once', { onText: async (text) => texts.push(text) })
+          : bridge.compact(120);
+        await Promise.all([starting, operation]);
+
+        assert.deepEqual(harness.launches, [{ chatId: '120', sessionFile }]);
+        const frames = harness.children[0].stdin.frames;
+        assert.deepEqual(frames.map(({ type }) => type), [
+          'negotiate_protocol',
+          'get_state',
+          'set_model',
+          'get_state',
+          kind === 'run' ? 'prompt' : 'compact',
+          'get_state',
+        ]);
+        const selection = frames.find(({ type }) => type === 'set_model');
+        assert.equal(selection.provider, selected.provider);
+        assert.equal(selection.modelId, selected.id);
+        if (kind === 'run') {
+          assert.equal(frames.find(({ type }) => type === 'prompt').message,
+            `${TELEGRAM_TASK_PREFIX}continue once`);
+          assert.deepEqual(texts, ['continued history']);
+        }
+        assert.deepEqual(JSON.parse(await readFile(path.join(stateDir, '120.json'), 'utf8')), {
+          sessionFile, claudeModel: selected.id,
+        });
+        assert.deepEqual((await bridge.models(120)).current, selected);
+        assert.equal(frames.filter(({ type }) => type === 'set_model').length, 1);
+      });
+    }
+  }
+});
+
+test('resuming preserves a previously selected Anthropic model', async (t) => {
+  const stateDir = await withStateDir(t);
+  const sessionFile = '/home/agent/sessions/selected-claude-history.json';
+  const selected = { provider: 'anthropic', id: 'claude-previously-selected', name: 'Previously selected' };
+  await writeFile(path.join(stateDir, '121.json'), JSON.stringify({ sessionFile, claudeModel: selected.id }));
+  const harness = makeHarness({
+    pointers: new Map([['121', sessionFile]]),
+    models: new Map([['121', selected]]),
+    onCommand: ({ frame, emit }) => {
+      if (frame.type === 'prompt') promptFrames(emit, frame.id);
+    },
+  });
+  const bridge = new AgentBridge({ launch: harness.launch, stateDir, timeoutMs: 500 });
+  t.after(() => bridge.close());
+
+  await bridge.run(121, 'keep my model and history');
+  assert.deepEqual((await bridge.models(121)).current, selected);
+  assert.deepEqual(harness.launches, [{ chatId: '121', sessionFile }]);
+  assert.equal(harness.children[0].stdin.frames.some(
+    ({ type }) => type === 'set_model' || type === 'new_session'
+  ), false);
+});
+
+test('resume migration fails closed on rejection, unverified selection, or changed history', async (t) => {
+  for (const [name, onSetModel, expectedError] of [
+    ['rejected selection', ({ frame, emit }) => {
+      emit({ type: 'response', id: frame.id, command: frame.type, success: false, error: 'Model unavailable' });
+    }, /Model unavailable/],
+    ['acknowledged without changing provider', ({ frame, emit }) => {
+      emit({
+        type: 'response', id: frame.id, command: frame.type, success: true,
+        data: { provider: 'anthropic', id: frame.modelId },
+      });
+    }, /did not select the configured Anthropic model/],
+    ['wrong Anthropic model', ({ frame, emit, models }) => {
+      models.set('122', { provider: 'anthropic', id: 'claude-unrequested' });
+      emit({ type: 'response', id: frame.id, command: frame.type, success: true, data: {} });
+    }, /did not select the configured Anthropic model/],
+    ['changed session', ({ frame, emit, models, pointers }) => {
+      models.set('122', { provider: 'anthropic', id: frame.modelId });
+      pointers.set('122', '/home/agent/sessions/unexpected-new-history.json');
+      emit({ type: 'response', id: frame.id, command: frame.type, success: true, data: {} });
+    }, /session path changed unexpectedly/],
+  ]) {
+    await t.test(name, async (t) => {
+      const stateDir = await withStateDir(t);
+      const sessionFile = '/home/agent/sessions/must-retain-history.json';
+      await writeFile(path.join(stateDir, '122.json'), JSON.stringify({ sessionFile }));
+      const harness = makeHarness({
+        pointers: new Map([['122', sessionFile]]),
+        models: new Map([['122', { provider: 'openai', id: 'gpt-old' }]]),
+        onSetModel,
+      });
+      const bridge = new AgentBridge({ launch: harness.launch, stateDir, timeoutMs: 500 });
+      t.after(() => bridge.close());
+      const texts = [];
+
+      await assert.rejects(bridge.run(122, 'must not send', {
+        onText: async (text) => texts.push(text),
+      }), expectedError);
+      assert.deepEqual(texts, []);
+      assert.equal(harness.children[0].terminateCalls, 1);
+      const frames = harness.children[0].stdin.frames;
+      assert.equal(frames.some(({ type }) => ['prompt', 'compact', 'new_session'].includes(type)), false);
+      assert.equal(frames.filter(({ type }) => type === 'set_model').length, 1);
+      assert.deepEqual(JSON.parse(await readFile(path.join(stateDir, '122.json'), 'utf8')), { sessionFile });
+    });
+  }
+});
+
+test('new Anthropic workers do not receive a redundant startup model change', async (t) => {
+  const stateDir = await withStateDir(t);
+  const selected = { provider: 'anthropic', id: configuredClaudeModel() };
+  const harness = makeHarness({ models: new Map([['123', selected]]) });
+  const bridge = new AgentBridge({ launch: harness.launch, stateDir, timeoutMs: 500 });
+  t.after(() => bridge.close());
+
+  await bridge.start(123);
+  assert.deepEqual(harness.launches, [{ chatId: '123', sessionFile: undefined }]);
+  assert.deepEqual(harness.children[0].stdin.frames.map(({ type }) => type), [
+    'negotiate_protocol', 'new_session', 'get_state',
+  ]);
+});
+
 test('models expose the live catalog and setModel never falls back providers', async (t) => {
   const stateDir = await withStateDir(t);
   const harness = makeHarness();
@@ -306,9 +456,9 @@ test('models expose the live catalog and setModel never falls back providers', a
   t.after(() => bridge.close());
 
   const available = await bridge.models(103);
-  assert.deepEqual(available.current, { provider: 'openai', id: 'gpt-test' });
+  assert.deepEqual(available.current, { provider: 'anthropic', id: configuredClaudeModel() });
   assert.deepEqual(available.models.map(({ provider, id }) => `${provider}/${id}`), [
-    'openai/gpt-test',
+    `anthropic/${configuredClaudeModel()}`,
     'anthropic/claude-test',
   ]);
   assert.deepEqual(await bridge.setModel(103, 'anthropic', 'claude-test'), {
@@ -320,7 +470,7 @@ test('models expose the live catalog and setModel never falls back providers', a
   const rejectingBridge = new AgentBridge({ launch: rejectingHarness.launch, stateDir, timeoutMs: 500 });
   t.after(() => rejectingBridge.close());
   await assert.rejects(rejectingBridge.setModel(110, 'anthropic', 'missing'), /Model not found/);
-  assert.deepEqual((await rejectingBridge.models(110)).current, { provider: 'openai', id: 'gpt-test' });
+  assert.deepEqual((await rejectingBridge.models(110)).current, available.current);
 });
 
 test('approval answers are schema-checked, single-use, chat-bound, and expire', async (t) => {

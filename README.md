@@ -2,7 +2,7 @@
 
 A private Telegram interface to the [OMP](https://github.com/can1357/oh-my-pi) agent harness. Text, captions, and transcribed voice messages go to persistent OMP sessions, which can read and edit files, execute code, search the web, and delegate work using OMP's tools.
 
-OMP is the default and only chat backend. The bot runs as a long-lived local polling process; the former direct-completion and Vercel webhook paths have been removed.
+OMP runs chat requests through the Anthropic Claude API. The bot runs as a long-lived local polling process.
 
 ## Requirements
 
@@ -10,7 +10,7 @@ OMP is the default and only chat backend. The bot runs as a long-lived local pol
 - A running Linux Docker engine and permission to build/run containers.
 - The compiled Linux `omp` executable on `PATH`, matching the Docker host architecture. Set `OMP_BIN` if it is installed elsewhere.
 - A Telegram bot token and the positive numeric Telegram user ID of its owner.
-- An OpenAI API key with access to the chosen OMP model. Voice transcription additionally needs `gpt-transcribe` access.
+- An Anthropic API key with access to the selected Claude model. An OpenAI API key is optional and used only for voice transcription.
 - Optional Upstash Redis credentials for rate limits that survive bot restarts.
 
 The bot requires Docker. There is no fallback that runs agent tools on the host.
@@ -28,8 +28,7 @@ Configure `.env` (ignored by Git):
 ```env
 TELEGRAM_BOT_API_KEY=your_telegram_bot_token
 ADMINID=your_positive_numeric_telegram_user_id
-OPENAI_API_KEY=your_openai_api_key
-AI_MODEL=gpt-6.1-sol
+ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
 `ADMINID` is now required. Both the sender ID and private chat ID must match it. Group chats and other users cannot invoke the agent, use commands, answer questions, or approve actions.
@@ -63,7 +62,7 @@ Only one polling process may use a bot token. Keep the machine and Docker engine
 | `/reset`, `/clear` | Start a fresh OMP conversation. Workspace files and archived session files are not deleted. |
 | `/compact` | Ask OMP to compact older history. Very short sessions have nothing to compact. Counts against the prompt rate limit. |
 | `/model` | Show the current model and a bounded selection from OMP's available models. |
-| `/model provider/model-id` | Select another available model, for example `/model openai/gpt-6.1-sol`. |
+| `/model anthropic/model-id` | Select another available Claude model, for example `/model anthropic/claude-haiku-4-5`. |
 | `/cancel` | Cancel the active task and stop its container, including background tools. The next request resumes the saved session in a new worker. |
 
 One task runs at a time. Ordinary prompts received while a task is busy are rejected with a busy notice, not silently queued. Approval answers and cancellation remain available while the task runs. Unknown slash commands are not forwarded to OMP's administrative command interface.
@@ -91,7 +90,7 @@ Each authorized conversation has an OMP container with:
 - No host repository/home mounts, Docker socket, or host-network mode.
 - No Telegram token, Redis credentials, admin-log token, or personal OMP profile.
 
-Only `OPENAI_API_KEY` and configured search-provider keys are passed into the worker. Internet access is available. Container isolation and approval prompts reduce risk; they do not make arbitrary code harmless or impose a network allowlist.
+Only `ANTHROPIC_API_KEY` and configured search-provider keys are passed into the worker. The optional OpenAI transcription key stays on the bot host. Internet access is available. Container isolation and approval prompts reduce risk; they do not make arbitrary code harmless or impose a network allowlist.
 
 Host metadata in `.agent-state/` records the exact OMP session file for each chat. New and reset sessions are saved before they are reported ready, even before the first message. Worker home and workspace volumes are named `telegram-omp-home-<chat-id>` and `telegram-omp-workspace-<chat-id>`. Keep the metadata and volumes together when backing up or moving the bot. They contain private conversation/workspace data and are not encrypted by this application.
 
@@ -103,7 +102,8 @@ On Ctrl+C or SIGTERM, the bot stops polling, cancels active work, and removes li
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AI_MODEL` | `gpt-6.1-sol` | Model for new sessions. Bare IDs use the `openai` provider. Resumed sessions retain their selected model. |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Claude model for new sessions and sessions migrating from another provider. Accepts a bare ID or `anthropic/<id>`. |
+| `OPENAI_API_KEY` | unset | Enables voice notes: the bot sends audio to OpenAI for transcription, then sends the text to Claude. Not needed for text chat. |
 | `OMP_BIN` | `omp` on `PATH` | Compiled Linux executable used by `npm run setup-agent`. |
 | `OMP_DOCKER_IMAGE` | `telegram-omp-agent:local` | Image built and launched for workers. |
 | `OMP_STATE_DIR` | `.agent-state` | Host-side persistent session pointers. |
@@ -119,6 +119,10 @@ Optional search keys passed through to OMP: `EXA_API_KEY`, `BRAVE_API_KEY`, `TAV
 Prompt limits count requests, not agent steps, tokens, or dollars. Voice is rate-limited before download/transcription. OMP's spending guard does not cover voice transcription or arbitrary separately billed services called by approved tools. Use provider-side spending limits as well.
 
 Restart the bot after changing environment variables. After upgrading the installed OMP binary, rebuild with `npm run setup-agent` and restart. Protect Docker access: controlling the Docker daemon is a host-level privilege, even though individual workers are restricted.
+
+## Switching an existing bot to Claude
+
+Set `ANTHROPIC_API_KEY` in `.env` and restart the existing polling process. The old `AI_MODEL` setting is no longer used. On first startup after migration, the bot uses `ANTHROPIC_MODEL` and keeps the existing conversation and workspace; you do not need `/reset`. Use `/model` to check or change the selection. The bot saves that choice for future restarts.
 
 ## Migration from the chatbot
 

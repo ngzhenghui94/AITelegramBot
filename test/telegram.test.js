@@ -74,10 +74,10 @@ function fakeAgent() {
     async compact() {},
     async models() {
       return {
-        current: { provider: 'openai', id: 'gpt-current' },
+        current: { provider: 'anthropic', id: 'claude-current' },
         models: [
-          { provider: 'openai', id: 'gpt-current', name: 'Current' },
-          { provider: 'openai', id: 'gpt-next', name: 'Next' },
+          { provider: 'anthropic', id: 'claude-current', name: 'Current' },
+          { provider: 'anthropic', id: 'claude-next', name: 'Next' },
         ],
       };
     },
@@ -138,8 +138,10 @@ function telegramHarness(t, agent = fakeAgent()) {
   resetInMemoryRateLimits();
 
   const requests = [];
+  const fetchUrls = [];
   let nextMessageId = 100;
   global.fetch = async (url, options = {}) => {
+    fetchUrls.push(url);
     if (url.startsWith('https://api.openai.com/')) {
       return new Response(JSON.stringify({ text: 'voice text' }), { status: 200 });
     }
@@ -155,6 +157,9 @@ function telegramHarness(t, agent = fakeAgent()) {
     if (method === 'sendMessage') {
       return { ok: true, json: async () => ({ ok: true, result: { message_id: nextMessageId++ } }) };
     }
+    if (method === 'getFile') {
+      return { ok: true, json: async () => ({ ok: true, result: { file_path: 'voice.ogg' } }) };
+    }
     return { ok: true, json: async () => ({ ok: true, result: true }) };
   };
 
@@ -167,7 +172,7 @@ function telegramHarness(t, agent = fakeAgent()) {
     resetInMemoryRateLimits();
   });
 
-  return { agent, requests, handler: createTelegramHandler({ agent }) };
+  return { agent, requests, fetchUrls, handler: createTelegramHandler({ agent }) };
 }
 
 async function waitFor(predicate) {
@@ -365,8 +370,123 @@ test('/model uses exact catalog tokens and rejects forged callback data', async 
   await waitFor(() => agent.state.modelChanges.length === 1);
   assert.deepEqual(agent.state.modelChanges[0], {
     chatId: ADMIN_ID,
-    provider: 'openai',
-    modelId: 'gpt-next',
+    provider: 'anthropic',
+    modelId: 'claude-next',
   });
+  await handler.shutdownTelegram();
+});
+
+test('/model offers only available Anthropic models, prioritizing its current model and preferred choices', async (t) => {
+  const agent = fakeAgent();
+  agent.models = async () => ({
+    current: { provider: 'anthropic', id: 'claude-current', name: 'Stale name' },
+    models: [
+      { provider: 'openai', id: 'claude-opus-4-6', name: 'Unavailable provider' },
+      { provider: 'anthropic', id: 'claude-other', name: 'Other Claude' },
+      { provider: 'anthropic', id: 'claude-sonnet-4-6', name: 'Sonnet' },
+      { provider: 'anthropic', id: 'claude-current', name: 'Current Claude' },
+      { provider: 'anthropic', id: 'claude-opus-4-6', name: 'Opus' },
+      { provider: 'anthropic', id: 'claude-opus-4-6', name: 'Duplicate Opus' },
+      { provider: 'google', id: 'gemini-test', name: 'Gemini' },
+    ],
+  });
+  const { requests, handler } = telegramHarness(t, agent);
+  await handler.handleUpdate({ message: adminMessage('/model') });
+  await waitFor(() => !handler.isBusy(ADMIN_ID));
+  const picker = requests.find((request) => request.body.reply_markup);
+  assert.deepEqual(picker.body.reply_markup.inline_keyboard.flat().map((button) => button.text), [
+    '✓ Current Claude', 'Opus', 'Sonnet', 'Other Claude',
+  ]);
+  await handler.shutdownTelegram();
+});
+
+test('/model never adds a current model absent from the available Anthropic catalog', async (t) => {
+  for (const current of [
+    { provider: 'openai', id: 'gpt-current' },
+    { provider: 'anthropic', id: 'claude-unavailable' },
+  ]) {
+    await t.test(current.provider, async (t) => {
+      const agent = fakeAgent();
+      agent.models = async () => ({
+        current,
+        models: [{ provider: 'anthropic', id: 'claude-available', name: 'Available Claude' }],
+      });
+      const { requests, handler } = telegramHarness(t, agent);
+      await handler.handleUpdate({ message: adminMessage('/model') });
+      await waitFor(() => !handler.isBusy(ADMIN_ID));
+      const picker = requests.find((request) => request.body.reply_markup);
+      assert.deepEqual(picker.body.reply_markup.inline_keyboard.flat().map((button) => button.text), ['Available Claude']);
+      await handler.shutdownTelegram();
+    });
+  }
+});
+
+test('/model reports no available Anthropic models without offering other providers or a stale current model', async (t) => {
+  const agent = fakeAgent();
+  agent.models = async () => ({
+    current: { provider: 'anthropic', id: 'claude-unavailable' },
+    models: [{ provider: 'openai', id: 'gpt-current', name: 'OpenAI' }],
+  });
+  const { requests, handler } = telegramHarness(t, agent);
+  await handler.handleUpdate({ message: adminMessage('/model') });
+  await waitFor(() => !handler.isBusy(ADMIN_ID));
+  const message = requests.find((request) => request.method === 'sendMessage');
+  assert.match(message.body.text, /No Anthropic models are currently available/);
+  assert.equal(message.body.reply_markup, undefined);
+  assert.deepEqual(agent.state.modelChanges, []);
+  await handler.shutdownTelegram();
+});
+
+test('manual /model rejects non-Anthropic providers and accepts an Anthropic model', async (t) => {
+  const { agent, requests, handler } = telegramHarness(t);
+  for (const provider of ['openai', 'openai-codex', 'google', 'Anthropic']) {
+    await handler.handleUpdate({ message: adminMessage(`/model ${provider}/model-test`) });
+  }
+  assert.deepEqual(agent.state.modelChanges, []);
+  assert.equal(requests.filter((request) => /Only Anthropic models are supported/.test(request.body.text || '')).length, 4);
+  await handler.handleUpdate({ message: adminMessage('/model malformed') });
+  assert.ok(requests.some((request) => /Usage: \/model anthropic\/model-id/.test(request.body.text || '')));
+  await handler.handleUpdate({ message: adminMessage('/model anthropic/claude-next') });
+  await waitFor(() => !handler.isBusy(ADMIN_ID));
+  assert.deepEqual(agent.state.modelChanges, [{ chatId: ADMIN_ID, provider: 'anthropic', modelId: 'claude-next' }]);
+  await handler.shutdownTelegram();
+});
+
+test('voice without an OpenAI key reports the missing key before downloading and leaves text chat working', async (t) => {
+  for (const key of [undefined, '', '   ']) {
+    await t.test(key === undefined ? 'unset key' : key === '' ? 'empty key' : 'blank key', async (t) => {
+      const { agent, requests, fetchUrls, handler } = telegramHarness(t);
+      if (key === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = key;
+      await handler.handleUpdate({
+        message: adminMessage('', 60, { text: undefined, voice: { file_id: 'voice-file' } }),
+      });
+      await waitFor(() => !handler.isBusy(ADMIN_ID));
+      assert.equal(agent.state.runCount, 0);
+      assert.deepEqual(requests.map((request) => request.method), ['sendMessage']);
+      assert.match(requests[0].body.text, /Voice transcription is unavailable.*OPENAI_API_KEY.*send text instead/);
+      assert.equal(fetchUrls.length, 1);
+      await handler.handleUpdate({ message: adminMessage('text still works', 61) });
+      await waitFor(() => agent.state.runCount === 1);
+      assert.deepEqual(agent.state.prompts, ['text still works']);
+      await handler.shutdownTelegram();
+    });
+  }
+});
+
+test('voice with an OpenAI key transcribes on the host and sends the transcript and caption to the agent', async (t) => {
+  const { agent, fetchUrls, handler } = telegramHarness(t);
+  await handler.handleUpdate({
+    message: adminMessage('', 70, {
+      text: undefined,
+      voice: { file_id: 'voice-file' },
+      caption: 'Additional context',
+    }),
+  });
+  await waitFor(() => agent.state.runCount === 1);
+  assert.ok(fetchUrls.some((url) => url.endsWith('/getFile')));
+  assert.ok(fetchUrls.some((url) => url.includes('/file/bot') && url.endsWith('/voice.ogg')));
+  assert.ok(fetchUrls.some((url) => url === 'https://api.openai.com/v1/audio/transcriptions'));
+  assert.deepEqual(agent.state.prompts, ['Voice transcription:\nvoice text\n\nCaption:\nAdditional context']);
   await handler.shutdownTelegram();
 });
