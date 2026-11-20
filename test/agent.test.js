@@ -87,8 +87,8 @@ function makeHarness({ onCommand, onSetModel, pointers = new Map(), models = new
   const launches = [];
   const durableSessions = new Set(pointers.values());
   let sessionNumber = 0;
-  const launch = ({ chatId, sessionFile }) => {
-    launches.push({ chatId, sessionFile });
+  const launch = ({ chatId, sessionFile, modelId }) => {
+    launches.push({ chatId, sessionFile, modelId });
     if (!pointers.has(chatId)) {
       pointers.set(chatId, `/home/agent/sessions/chat-${chatId}.json`);
     }
@@ -337,7 +337,7 @@ test('resumed legacy or missing models migrate before work without replacing his
           : bridge.compact(120);
         await Promise.all([starting, operation]);
 
-        assert.deepEqual(harness.launches, [{ chatId: '120', sessionFile }]);
+        assert.deepEqual(harness.launches, [{ chatId: '120', sessionFile, modelId: selected.id }]);
         const frames = harness.children[0].stdin.frames;
         assert.deepEqual(frames.map(({ type }) => type), [
           'negotiate_protocol',
@@ -382,7 +382,7 @@ test('resuming preserves a previously selected Anthropic model', async (t) => {
 
   await bridge.run(121, 'keep my model and history');
   assert.deepEqual((await bridge.models(121)).current, selected);
-  assert.deepEqual(harness.launches, [{ chatId: '121', sessionFile }]);
+  assert.deepEqual(harness.launches, [{ chatId: '121', sessionFile, modelId: selected.id }]);
   assert.equal(harness.children[0].stdin.frames.some(
     ({ type }) => type === 'set_model' || type === 'new_session'
   ), false);
@@ -443,7 +443,7 @@ test('new Anthropic workers do not receive a redundant startup model change', as
   t.after(() => bridge.close());
 
   await bridge.start(123);
-  assert.deepEqual(harness.launches, [{ chatId: '123', sessionFile: undefined }]);
+  assert.deepEqual(harness.launches, [{ chatId: '123', sessionFile: undefined, modelId: selected.id }]);
   assert.deepEqual(harness.children[0].stdin.frames.map(({ type }) => type), [
     'negotiate_protocol', 'new_session', 'get_state',
   ]);

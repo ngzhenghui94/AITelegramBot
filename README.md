@@ -134,7 +134,7 @@ Set `ANTHROPIC_API_KEY` in `.env` and restart the existing polling process. The 
 
 ## Troubleshooting
 
-- **No response:** use the private chat from the user configured in `ADMINID`. Check that the polling process and Docker are running.
+- **No response:** check for a fresh `Polling started` line after restarting. A supervisor can report the bot as online while the worker is crash-looping. If an older build cannot restore an OpenAI model after switching to Claude, update the bot and restart it; do not delete the session or its volumes.
 - **Webhook conflict:** run `npm run webhook-info`; its URL must be empty. Stop the old deployment before `npm run delete-webhook`.
 - **Missing image:** run `npm run setup-agent`. A package-manager shim is not a compiled OMP executable; point `OMP_BIN` at the actual Linux binary.
 - **Model error:** check API credits and access, and choose a model present in `/model`. There is no silent provider fallback.
